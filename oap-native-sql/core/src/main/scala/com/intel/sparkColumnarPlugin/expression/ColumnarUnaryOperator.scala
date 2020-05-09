@@ -6,6 +6,7 @@ import org.apache.arrow.gandiva.evaluator._
 import org.apache.arrow.gandiva.exceptions.GandivaException
 import org.apache.arrow.gandiva.expression._
 import org.apache.arrow.vector.types.pojo.ArrowType
+import org.apache.arrow.vector.types.FloatingPointPrecision
 import org.apache.arrow.vector.types.pojo.Field
 import org.apache.arrow.vector.types.DateUnit
 
@@ -91,12 +92,17 @@ class ColumnarAbs(child: Expression, original: Expression)
   override def doColumnarCodeGen(args: java.lang.Object): (TreeNode, ArrowType) = {
     val (child_node, childType): (TreeNode, ArrowType) =
       child.asInstanceOf[ColumnarExpression].doColumnarCodeGen(args)
+    val precision = 16
+    val scale = 8
 
-    val resultType = new ArrowType.Int(32, true)
-    val funcNode =
-      TreeBuilder.makeFunction("abs", Lists.newArrayList(child_node), resultType)
+    val resultType = new ArrowType.FloatingPoint(FloatingPointPrecision.DOUBLE)
+    val cast_func = TreeBuilder.makeFunction("castDECIMAL",
+      Lists.newArrayList(child_node), new ArrowType.Decimal(precision, scale))
+    val funcNode = TreeBuilder.makeFunction("abs", Lists.newArrayList(cast_func),
+      new ArrowType.Decimal(precision, scale))
     val castNode =
-      TreeBuilder.makeFunction("castBIGINT", Lists.newArrayList(funcNode), resultType)
+      TreeBuilder.makeFunction("castFLOAT8", Lists.newArrayList(funcNode), resultType)
+    logWarning(s"${child} enter abs.")
     (castNode, resultType)
   }
 }
