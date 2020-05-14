@@ -1,0 +1,43 @@
+From 2605ebf5f4194be56f58fc0cb7e9878e29d6d4c6 Mon Sep 17 00:00:00 2001
+From: Yuan Zhou <yuan.zhou@intel.com>
+Date: Sat, 9 May 2020 21:00:04 +0800
+Subject: [PATCH] [Scala] adding gandiva decimal support
+
+Signed-off-by: Yuan Zhou <yuan.zhou@intel.com>
+---
+ .../vectorized/ArrowWritableColumnVector.java               | 6 ++++++
+ .../expression/ColumnarUnaryOperator.scala                  | 4 ++++
+ 2 files changed, 10 insertions(+)
+
+diff --git a/oap-native-sql/core/src/main/java/com/intel/sparkColumnarPlugin/vectorized/ArrowWritableColumnVector.java b/oap-native-sql/core/src/main/java/com/intel/sparkColumnarPlugin/vectorized/ArrowWritableColumnVector.java
+index ff5cd43d49..8f4da196dc 100644
+--- a/oap-native-sql/core/src/main/java/com/intel/sparkColumnarPlugin/vectorized/ArrowWritableColumnVector.java
++++ b/oap-native-sql/core/src/main/java/com/intel/sparkColumnarPlugin/vectorized/ArrowWritableColumnVector.java
+@@ -921,6 +921,12 @@ final Decimal getDecimal(int rowId, int precision, int scale) {
+       if (isNullAt(rowId)) return null;
+       return Decimal.apply(accessor.getObject(rowId), precision, scale);
+     }
++
++    @Override
++    final UTF8String getUTF8String(int rowId) {
++      Decimal decimalValue = getDecimal(rowId, accessor.getPrecision(), accessor.getScale());
++      return UTF8String.fromString(decimalValue.toString());
++    }
+   }
+ 
+   private static class StringAccessor extends ArrowVectorAccessor {
+diff --git a/oap-native-sql/core/src/main/scala/com/intel/sparkColumnarPlugin/expression/ColumnarUnaryOperator.scala b/oap-native-sql/core/src/main/scala/com/intel/sparkColumnarPlugin/expression/ColumnarUnaryOperator.scala
+index c99abdca5e..b0966c9d6f 100644
+--- a/oap-native-sql/core/src/main/scala/com/intel/sparkColumnarPlugin/expression/ColumnarUnaryOperator.scala
++++ b/oap-native-sql/core/src/main/scala/com/intel/sparkColumnarPlugin/expression/ColumnarUnaryOperator.scala
+@@ -84,6 +84,10 @@ object ColumnarUnaryOperator {
+       child
+     case a: NormalizeNaNAndZero =>
+       child
++    case a: PromotePrecision =>
++      child
++    case a: CheckOverflow =>
++      child
+     case other =>
+       throw new UnsupportedOperationException(s"not currently supported: $other.")
+   }

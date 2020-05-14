@@ -126,6 +126,10 @@ object ColumnarUnaryOperator {
       child
     case a: NormalizeNaNAndZero =>
       child
+    case a: PromotePrecision =>
+      child
+    case a: CheckOverflow =>
+      child
     case other =>
       throw new UnsupportedOperationException(s"not currently supported: $other.")
   }
