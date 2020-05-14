@@ -107,6 +107,24 @@ class ColumnarAbs(child: Expression, original: Expression)
   }
 }
 
+class ColumnarCast(child: Expression, original: Expression)
+  extends Cast(child: Expression)
+    with ColumnarExpression
+    with Logging {
+  override def doColumnarCodeGen(args: java.lang.Object): (TreeNode, ArrowType) = {
+    val (child_node, childType): (TreeNode, ArrowType) =
+      child.asInstanceOf[ColumnarExpression].doColumnarCodeGen(args)
+    childType match {
+      case d: DateType =>
+        val resultType = new ArrowType.Date(DateUnit.DAY)
+        val castNode = TreeBuilder.makeFunction("castDATE", Lists.newArrayList(child_node), resultType)
+        (castNode, resultType)
+      case other =>
+        child
+    }
+  }
+}
+
 object ColumnarUnaryOperator {
 
   def create(child: Expression, original: Expression): Expression = original match {
@@ -121,7 +139,7 @@ object ColumnarUnaryOperator {
     case a: Abs =>
       new ColumnarAbs(child, a)
     case c: Cast =>
-      child
+      new ColumnarCast(child, c)
     case a: KnownFloatingPointNormalized =>
       child
     case a: NormalizeNaNAndZero =>
