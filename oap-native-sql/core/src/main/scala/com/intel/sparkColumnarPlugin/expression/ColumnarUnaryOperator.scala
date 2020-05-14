@@ -1,7 +1,6 @@
 package com.intel.sparkColumnarPlugin.expression
 
 import com.google.common.collect.Lists
-
 import org.apache.arrow.gandiva.evaluator._
 import org.apache.arrow.gandiva.exceptions.GandivaException
 import org.apache.arrow.gandiva.expression._
@@ -9,9 +8,9 @@ import org.apache.arrow.vector.types.pojo.ArrowType
 import org.apache.arrow.vector.types.FloatingPointPrecision
 import org.apache.arrow.vector.types.pojo.Field
 import org.apache.arrow.vector.types.DateUnit
-
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions._
+import org.apache.spark.sql.catalyst.util.DateTimeUtils
 import org.apache.spark.sql.catalyst.optimizer._
 import org.apache.spark.sql.types._
 
@@ -107,20 +106,23 @@ class ColumnarAbs(child: Expression, original: Expression)
   }
 }
 
-class ColumnarCast(child: Expression, original: Expression)
-  extends Cast(child: Expression)
+class ColumnarCast(child: Expression, dataType: DataType)
+  extends Cast(child: Expression, dataType: DataType)
     with ColumnarExpression
     with Logging {
   override def doColumnarCodeGen(args: java.lang.Object): (TreeNode, ArrowType) = {
     val (child_node, childType): (TreeNode, ArrowType) =
       child.asInstanceOf[ColumnarExpression].doColumnarCodeGen(args)
-    childType match {
+
+    dataType match {
       case d: DateType =>
         val resultType = new ArrowType.Date(DateUnit.DAY)
-        val castNode = TreeBuilder.makeFunction("castDATE", Lists.newArrayList(child_node), resultType)
+        //val origIntNode = TreeBuilder.makeLiteral(child_node.value.asInstanceOf[Integer])
+        val castNode =
+          TreeBuilder.makeFunction("castDATE", Lists.newArrayList(child_node), resultType)
         (castNode, resultType)
       case other =>
-        child
+        throw new UnsupportedOperationException(s"Cast doesn't support $other.")
     }
   }
 }
@@ -139,7 +141,7 @@ object ColumnarUnaryOperator {
     case a: Abs =>
       new ColumnarAbs(child, a)
     case c: Cast =>
-      new ColumnarCast(child, c)
+      new ColumnarCast(child, original.dataType)
     case a: KnownFloatingPointNormalized =>
       child
     case a: NormalizeNaNAndZero =>
