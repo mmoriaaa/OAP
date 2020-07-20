@@ -47,7 +47,7 @@ class ExprVisitorImpl {
   }
 
   virtual arrow::Status SetMember() {
-    return arrow::Status::NotImplemented("ExprVisitorImpl Init is abstract.");
+    return arrow::Status::NotImplemented("ExprVisitorImpl SetMember is abstract.");
   }
 
   virtual arrow::Status SetDependency(
@@ -223,6 +223,10 @@ class AggregateVisitorImpl : public ExprVisitorImpl {
       RETURN_NOT_OK(extra::MinArrayKernel::Make(&p_->ctx_, data_type, &kernel_));
     } else if (func_name_.compare("max") == 0) {
       RETURN_NOT_OK(extra::MaxArrayKernel::Make(&p_->ctx_, data_type, &kernel_));
+    } else if (func_name_.compare("stddev_samp_partial") == 0) {
+      RETURN_NOT_OK(extra::StddevSampPartialArrayKernel::Make(&p_->ctx_, data_type, &kernel_));
+    } else if (func_name_.compare("stddev_samp_final") == 0) {
+      RETURN_NOT_OK(extra::StddevSampFinalArrayKernel::Make(&p_->ctx_, data_type, &kernel_));
     }
     initialized_ = true;
     return arrow::Status::OK();

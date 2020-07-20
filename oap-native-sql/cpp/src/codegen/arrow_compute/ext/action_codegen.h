@@ -464,7 +464,6 @@ class SumCountActionCodeGen : public ActionCodeGen {
     if (data_type->id() != arrow::Type::STRING) {
       prepare_codes_ss << tmp_name << " = " << typed_input_and_prepare_list_[0].first
                        << "->GetView(cur_id_);" << std::endl;
-
     } else {
       prepare_codes_ss << tmp_name << " = " << typed_input_and_prepare_list_[0].first
                        << "->GetString(cur_id_);" << std::endl;
@@ -492,7 +491,7 @@ class SumCountActionCodeGen : public ActionCodeGen {
         GetTypedResultToArrayString(data_type, sig_name));
     finish_var_array_codes_list_.push_back(
         GetTypedResultArrayString(data_type, sig_name));
-
+ 
     sig_name = "action_count_" + name + "_";
     data_type = arrow::int64();
     func_sig_list_.push_back(sig_name);
@@ -843,6 +842,149 @@ class AvgActionCodeGen : public ActionCodeGen {
         GetTypedResultToArrayString(data_type, sig_name));
     finish_var_array_codes_list_.push_back(
         GetTypedResultArrayString(data_type, sig_name));
+  }
+};
+
+class StddevSampPartialActionCodeGen : public ActionCodeGen {
+ public:
+  StddevSampPartialActionCodeGen(std::string name, std::vector<std::string> child_list,
+                   std::vector<std::string> input_list,
+                   std::vector<std::shared_ptr<arrow::Field>> input_fields_list,
+                   std::string prepare_codes_str,
+                   std::shared_ptr<gandiva::Expression> projector) {
+    is_key_ = false;
+    std::string sig_name;
+    std::shared_ptr<arrow::DataType> data_type;
+    if (projector) {
+      // if projection pre-defined, use projection input
+      auto _name = projector->result()->name();
+      data_type = projector->result()->type();
+      sig_name = "action_sum_" + _name + "_";
+      projector_expr_ = projector;
+      GetTypedArrayCastByNameString(data_type, _name);
+    } else {
+      sig_name = "action_sum_" + name + "_";
+      data_type = input_fields_list[0]->type();
+      GetTypedArrayCastString(data_type, input_list[0]);
+    }
+    auto count_name = "action_count_" + name + "_";
+    auto m2_name = "action_m2_" + name + "_";
+    func_sig_list_.push_back(sig_name);
+    auto tmp_name = sig_name + "_tmp";
+    std::stringstream prepare_codes_ss;
+    prepare_codes_ss << GetCTypeString(data_type) << " " << tmp_name << " = 0;"
+                     << std::endl;
+    prepare_codes_ss << "if (!" << typed_input_and_prepare_list_[0].first
+                     << "->IsNull(cur_id_)) {" << std::endl;
+    if (data_type->id() != arrow::Type::STRING) {
+      prepare_codes_ss << tmp_name << " = " << typed_input_and_prepare_list_[0].first
+                       << "->GetView(cur_id_);" << std::endl;
+
+    } else {
+      prepare_codes_ss << tmp_name << " = " << typed_input_and_prepare_list_[0].first
+                       << "->GetString(cur_id_);" << std::endl;
+    }
+    prepare_codes_ss << "}" << std::endl;
+
+    on_exists_prepare_codes_list_.push_back(prepare_codes_ss.str() + "\n");
+    on_new_prepare_codes_list_.push_back(prepare_codes_ss.str() + "\n");
+    func_sig_define_codes_list_.push_back(
+        GetTypedVectorDefineString(data_type, sig_name) + ";\n");
+    on_exists_codes_list_.push_back("double pre_avg = " + sig_name + "[i] * 1.0 / (" 
+    + count_name + "[i] > 0 ? " + count_name + "[i] : 1);" + "double delta = " 
+    + tmp_name +" * 1.0 - pre_avg; double deltaN = delta / (" + count_name + "[i] + 1);" 
+    + m2_name + "[i] += delta * deltaN * " + count_name + "[i];"
+    + sig_name + "[i] += " + tmp_name + ";");
+    // on_exists_codes_list_.push_back(sig_name + "[i] += " + tmp_name + ";");
+    on_new_codes_list_.push_back(sig_name + ".push_back(" + tmp_name + ");"
+    + "float stddev = 0;" + m2_name + ".push_back(stddev);");
+///////////////////////////// Count //////////////////////////////////
+    sig_name = "action_count_" + name + "_";
+    data_type = arrow::int64();
+    func_sig_list_.push_back(sig_name);
+    typed_input_and_prepare_list_.push_back(std::make_pair("", ""));
+    prepare_codes_ss.str("");
+    auto count_name_tmp = tmp_name + "_count";
+    prepare_codes_ss << GetCTypeString(data_type) << " " << count_name_tmp << " = 0;"
+                     << std::endl;
+    prepare_codes_ss << "if (!" << typed_input_and_prepare_list_[0].first
+                     << "->IsNull(cur_id_)) {" << std::endl;
+    prepare_codes_ss << count_name_tmp << " = 1;" << std::endl;
+    prepare_codes_ss << "}" << std::endl;
+    func_sig_define_codes_list_.push_back(
+        GetTypedVectorDefineString(data_type, sig_name) + ";\n");
+    on_exists_prepare_codes_list_.push_back("");
+    on_new_prepare_codes_list_.push_back("");
+    on_exists_codes_list_.push_back(prepare_codes_ss.str() + "\n" + sig_name +
+                                    "[i] += " + count_name_tmp + ";");
+    on_new_codes_list_.push_back(prepare_codes_ss.str() + "\n" + sig_name +
+                                 ".push_back(" + count_name_tmp + ");");
+    on_finish_codes_list_.push_back("");
+
+    finish_variable_list_.push_back(sig_name);
+    finish_var_parameter_codes_list_.push_back(
+        GetTypedVectorDefineString(data_type, sig_name + "_vector_tmp"));
+    finish_var_define_codes_list_.push_back(
+        GetTypedVectorAndBuilderDefineString(data_type, sig_name));
+    finish_var_prepare_codes_list_.push_back(
+        GetTypedVectorAndBuilderPrepareString(data_type, sig_name));
+    finish_var_to_builder_codes_list_.push_back(
+        GetTypedVectorToBuilderString(data_type, sig_name));
+    finish_var_to_array_codes_list_.push_back(
+        GetTypedResultToArrayString(data_type, sig_name));
+    finish_var_array_codes_list_.push_back(
+        GetTypedResultArrayString(data_type, sig_name));
+///////////////////////////// Avg //////////////////////////////////
+    sig_name = "action_avg_" + name + "_";
+    auto sum_name = "action_sum_" + name + "_";
+    data_type = arrow::float64();
+    func_sig_list_.push_back(sig_name);
+    typed_input_and_prepare_list_.push_back(std::make_pair("", ""));
+    func_sig_define_codes_list_.push_back(
+        GetTypedVectorDefineString(data_type, sig_name) + ";\n");
+    on_exists_codes_list_.push_back("");
+    on_new_codes_list_.push_back("");
+    on_finish_codes_list_.push_back(sig_name + ".push_back(" + sum_name + "[i] * 1.0 / " +
+                                    count_name + "[i]);");
+
+    finish_variable_list_.push_back(sig_name);
+    finish_var_parameter_codes_list_.push_back(
+        GetTypedVectorDefineString(data_type, sig_name + "_vector_tmp"));
+    finish_var_define_codes_list_.push_back(
+        GetTypedVectorAndBuilderDefineString(data_type, sig_name));
+    finish_var_prepare_codes_list_.push_back(
+        GetTypedVectorAndBuilderPrepareString(data_type, sig_name));
+    finish_var_to_builder_codes_list_.push_back(
+        GetTypedVectorToBuilderString(data_type, sig_name));
+    finish_var_to_array_codes_list_.push_back(
+        GetTypedResultToArrayString(data_type, sig_name));
+    finish_var_array_codes_list_.push_back(
+        GetTypedResultArrayString(data_type, sig_name));
+///////////////////////////// M2 //////////////////////////////////
+    sig_name = "action_m2_" + name + "_";
+    data_type = arrow::float64();
+    func_sig_list_.push_back(sig_name);
+    typed_input_and_prepare_list_.push_back(std::make_pair("", ""));
+    func_sig_define_codes_list_.push_back(
+        GetTypedVectorDefineString(data_type, sig_name) + ";\n");
+    on_exists_codes_list_.push_back("");
+    on_new_codes_list_.push_back("");
+    on_finish_codes_list_.push_back("");
+
+    finish_variable_list_.push_back(sig_name);
+    std::cout<<"signame is "<<sig_name<<std::endl;
+    finish_var_parameter_codes_list_.push_back(
+        GetTypedVectorDefineString(data_type, sig_name + "_vector_tmp"));
+    finish_var_define_codes_list_.push_back(
+        GetTypedVectorAndBuilderDefineString(data_type, sig_name));
+    finish_var_prepare_codes_list_.push_back(
+        GetTypedVectorAndBuilderPrepareString(data_type, sig_name));
+    finish_var_to_builder_codes_list_.push_back(
+        GetTypedVectorToBuilderString(data_type, sig_name));
+    finish_var_to_array_codes_list_.push_back(
+        GetTypedResultToArrayString(data_type, sig_name));
+    finish_var_array_codes_list_.push_back(
+        GetTypedResultArrayString(data_type, sig_name));    
   }
 };
 #undef PROCESS_SUPPORTED_TYPES
