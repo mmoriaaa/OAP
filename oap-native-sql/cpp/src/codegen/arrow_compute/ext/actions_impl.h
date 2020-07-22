@@ -1241,7 +1241,7 @@ class StddevSampFinalAction : public ActionBase {
           int64_t n1 = cache_count_[dest_group_id];
           int64_t n2 = data_count_[row_id];
           double deltaN = (n1 + n2) > 0 ? delta / (n1 + n2) : 0;
-          cache_m2_[dest_group_id] += delta * deltaN * n1 * n2;
+          cache_m2_[dest_group_id] += (data_m2_[row_id] + delta * deltaN * n1 * n2);
           cache_avg_[dest_group_id] += deltaN * n2;
           cache_count_[dest_group_id] += n2;
         }
@@ -1256,7 +1256,7 @@ class StddevSampFinalAction : public ActionBase {
         int64_t n1 = cache_count_[dest_group_id];
         int64_t n2 = data_count_[row_id];
         double deltaN = (n1 + n2) > 0 ? delta / (n1 + n2) : 0;
-        cache_m2_[dest_group_id] += delta * deltaN * n1 * n2;
+        cache_m2_[dest_group_id] += (data_m2_[row_id] + delta * deltaN * n1 * n2);
         cache_avg_[dest_group_id] += deltaN * n2;
         cache_count_[dest_group_id] += n2;
         row_id++;

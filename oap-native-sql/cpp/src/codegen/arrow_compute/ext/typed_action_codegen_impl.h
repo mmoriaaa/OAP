@@ -59,6 +59,9 @@ class TypedActionCodeGenImpl {
     RETURN_NOT_OK(MakeCodeGenRegister(func_node, &node_tmp));
     signature_ss << std::hex << std::hash<std::string>{}(node_tmp->GetFingerprint());
     auto name = "projection_" + signature_ss.str();
+    for (auto index : input_index_list_) {
+      name += "_" + std::to_string(index);
+    }
     auto res_field = arrow::field(name, func_node->return_type());
     named_projector_ = gandiva::TreeExprBuilder::MakeExpression(func_node, res_field);
 #ifdef DEBUG
@@ -165,6 +168,16 @@ class TypedActionCodeGenImpl {
         name = std::to_string(input_index_list_[0]);
       }
       *action_codegen = std::make_shared<StddevSampPartialActionCodeGen>(
+          name, child_list_, input_list_, input_fields_list_, codes_ss_.str(),
+          named_projector_);
+    } else if (action_name_.compare("action_stddev_samp_final") == 0) {
+      std::string name;
+      if (input_index_list_.size() == 3) {
+        name = std::to_string(input_index_list_[0]) + "_" +
+               std::to_string(input_index_list_[1]) + "_" +
+               std::to_string(input_index_list_[2]);
+      }
+      *action_codegen = std::make_shared<StddevSampFinalActionCodeGen>(
           name, child_list_, input_list_, input_fields_list_, codes_ss_.str(),
           named_projector_);
     } else {

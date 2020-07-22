@@ -510,6 +510,48 @@ TEST(TestArrowCompute, GroupByAggregateWithMultipleBatchOutputWoKeyTest) {
   ASSERT_NOT_OK(Equals(*expected_result.get(), *(result_batch[0]).get()));
 }
 
+TEST(TestArrowCompute, StddevSampFinalTest) {
+  ////////////////////// prepare expr_vector ///////////////////////
+  auto f0 = field("f0", float64());
+  auto f1 = field("f1", float64());
+  auto f2 = field("f2", float64());
+
+//   auto f_count = field("count", int64());
+  auto f_float = field("float", float64());
+  auto f_res = field("res", uint32());
+
+  auto arg_0 = TreeExprBuilder::MakeField(f0);
+  auto arg_1 = TreeExprBuilder::MakeField(f1);
+  auto arg_2 = TreeExprBuilder::MakeField(f2);
+
+  auto n_stddev_samp_final = TreeExprBuilder::MakeFunction("stddev_samp_final", {arg_0, arg_1, arg_2}, float64());
+  auto final_expr = TreeExprBuilder::MakeExpression(n_stddev_samp_final, f_res);
+  
+  std::vector<std::shared_ptr<::gandiva::Expression>> expr_vector = {final_expr};
+  auto sch = arrow::schema({f0, f1, f2});
+  std::vector<std::shared_ptr<Field>> ret_types = {f_float};
+  ///////////////////// Calculation //////////////////
+  std::shared_ptr<CodeGenerator> expr;
+  ASSERT_NOT_OK(CreateCodeGenerator(sch, expr_vector, ret_types, &expr, true));
+  std::shared_ptr<arrow::RecordBatch> input_batch;
+  std::vector<std::shared_ptr<arrow::RecordBatch>> result_batch;
+  std::vector<std::string> input_data_string = {"[2, 32, 14, 16, 18, 3, 4, 7, 9, 10]", 
+  "[2, 32, 14, 16, 18, 12, 32, 11, 12, 14]", "[2, 16, 14, 16, 18, 23, 32, 45, 43, 12]"};
+  MakeInputBatch(input_data_string, sch, &input_batch);
+  ASSERT_NOT_OK(expr->evaluate(input_batch, &result_batch));
+  std::vector<std::string> input_data_2_string = {"[8, 57, 59, 12, 1, 12, 3, 5, 7, 8]", 
+  "[8, 57, 59, 12, 1, 15, 21, 13, 15, 6]", "[8, 57, 59, 12, 1, 8, 6, 3, 6, 12]"};
+  MakeInputBatch(input_data_2_string, sch, &input_batch);
+  ASSERT_NOT_OK(expr->evaluate(input_batch, &result_batch));
+  ASSERT_NOT_OK(expr->finish(&result_batch));
+
+  std::shared_ptr<arrow::RecordBatch> expected_result;
+  std::vector<std::string> expected_result_string = {"[21.0435]"};
+  auto res_sch = arrow::schema({f_float});
+  MakeInputBatch(expected_result_string, res_sch, &expected_result);
+  ASSERT_NOT_OK(Equals(*expected_result.get(), *(result_batch[0]).get()));
+}
+
 TEST(TestArrowCompute, GroupByStddevSampPartialWithMultipleBatchTest) {
   ////////////////////// prepare expr_vector ///////////////////////
   auto f0 = field("f0", utf8());
@@ -577,6 +619,72 @@ TEST(TestArrowCompute, GroupByStddevSampPartialWithMultipleBatchTest) {
       "[8, 5, 3, 5, 11, 7, 4, 4, 6, 7]", "[8.75, 7.6, 7.33333, 12.4, 28, 14.1429, 25, 31.5, 23.3333, 49.2857]",
       "[385.5, 41.2, 64.6667, 549.2, 3524, 806.857, 846, 1521, 4283.33, 7201.43]"};
   auto res_sch = arrow::schema({f_unique, f_count, f_avg, f_m2});
+  MakeInputBatch(expected_result_string, res_sch, &expected_result);
+  ASSERT_NOT_OK(Equals(*expected_result.get(), *(result_batch[0]).get()));
+}
+
+TEST(TestArrowCompute, GroupByStddevSampFinalWithMultipleBatchTest) {
+  ////////////////////// prepare expr_vector ///////////////////////
+  auto f0 = field("f0", uint32());
+  auto f1 = field("f1", int64());
+  auto f2 = field("f2", float64());
+  auto f3 = field("f3", float64());
+  auto f_unique = field("unique", uint32());
+  auto f_stddev = field("stddev", float64());
+  auto f_res = field("res", uint32());
+
+  auto arg_0 = TreeExprBuilder::MakeField(f0);
+  auto n_pre = TreeExprBuilder::MakeFunction("encodeArray", {arg_0}, uint32());
+  auto arg_1 = TreeExprBuilder::MakeField(f1);
+  auto arg_2 = TreeExprBuilder::MakeField(f2);
+  auto arg_3 = TreeExprBuilder::MakeField(f3);
+  auto n_split = TreeExprBuilder::MakeFunction(
+      "splitArrayListWithAction", {n_pre, arg_0, arg_1, arg_2, arg_3}, uint32());
+  auto arg_res = TreeExprBuilder::MakeField(f_res);
+
+  auto n_unique = TreeExprBuilder::MakeFunction("action_unique", {n_split, arg_0}, uint32());
+  auto n_stddev = TreeExprBuilder::MakeFunction("action_stddev_samp_final", 
+    {n_split, arg_1, arg_2, arg_3}, uint32());
+
+  auto unique_expr = TreeExprBuilder::MakeExpression(n_unique, f_res);
+  auto stddev_expr = TreeExprBuilder::MakeExpression(n_stddev, f_res);
+
+  std::vector<std::shared_ptr<::gandiva::Expression>> expr_vector = {unique_expr, stddev_expr};
+  auto sch = arrow::schema({f0, f1, f2, f3});
+  std::vector<std::shared_ptr<Field>> ret_types = {f_unique, f_stddev};
+
+  /////////////////////// Create Expression Evaluator ////////////////////
+  std::shared_ptr<CodeGenerator> expr;
+  ASSERT_NOT_OK(CreateCodeGenerator(sch, expr_vector, ret_types, &expr, true));
+  std::shared_ptr<arrow::RecordBatch> input_batch;
+  std::vector<std::shared_ptr<arrow::RecordBatch>> output_batch_list;
+
+  ////////////////////// calculation /////////////////////
+  std::vector<std::string> input_data = {
+      "[1, 2, 3, 4, 5, null, 4, 1, 2, 2, 1, 1, 1, 4, 4, 3, 5, 5, 5, 5]",
+      "[2, 4, 5, 7, 8, 2, 45, 32, 23, 12, 14, 16, 18, 19, 23, 25, 57, 59, 12, 1]",
+      "[2, 4, 5, 7, 8, 2, 45, 32, 23, 12, 14, 16, 18, 19, 23, 25, 57, 59, 12, 1]",
+      "[2, 4, 5, 7, 8, 2, 45, 32, 23, 12, 14, 16, 18, 19, 23, 25, 57, 59, 12, 1]"};
+  MakeInputBatch(input_data, sch, &input_batch);
+  ASSERT_NOT_OK(expr->evaluate(input_batch, &output_batch_list));
+
+  std::vector<std::string> input_data_2 = {
+      "[6, 7, 8, 9, 10, 10, 9, 6, 7, 7, 6, 6, 6, 9, 9, 8, 10, 10, 10, 10]",
+      "[7, 8, 4, 5, 6, 1, 34, 54, 65, 66, 78, 12, 32, 24, 32, 45, 12, 24, 35, 46]",
+      "[2, 4, 5, 7, 8, 2, 45, 32, 23, 12, 14, 16, 18, 19, 23, 25, 57, 59, 12, 1]",
+      "[2, 4, 5, 7, 8, 2, 45, 32, 23, 12, 14, 16, 18, 19, 23, 25, 57, 59, 12, 1]"};
+  MakeInputBatch(input_data_2, sch, &input_batch);
+  ASSERT_NOT_OK(expr->evaluate(input_batch, &output_batch_list));
+  
+  ////////////////////// Finish //////////////////////////
+  std::vector<std::shared_ptr<arrow::RecordBatch>> result_batch;
+  ASSERT_NOT_OK(expr->finish(&result_batch));
+ 
+  std::shared_ptr<arrow::RecordBatch> expected_result;
+  std::vector<std::string> expected_result_string = {
+      "[1, 2, 3, 4, 5, 6, 7, 8 ,9, 10]", 
+      "[8.49255, 6.93137, 7.6489, 13.5708, 17.4668, 8.52779, 6.23633, 5.58903, 12.535, 24.3544]"};
+  auto res_sch = arrow::schema({f_unique, f_stddev});
   MakeInputBatch(expected_result_string, res_sch, &expected_result);
   ASSERT_NOT_OK(Equals(*expected_result.get(), *(result_batch[0]).get()));
 }

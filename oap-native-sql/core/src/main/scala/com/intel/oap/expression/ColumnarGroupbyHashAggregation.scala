@@ -405,6 +405,21 @@ object ColumnarGroupbyHashAggregation extends Logging {
               List(inputAttrQueue.dequeue).map(attr => getColumnarFuncNode(attr))
           }
         TreeBuilder.makeFunction("action_min", childrenColumnarFuncNodeList.asJava, resultType)
+      case StddevSamp(_) =>
+        mode match {
+          case Partial | PartialMerge =>
+            val childrenColumnarFuncNodeList =
+              aggregateFunc.children.toList.map(expr => getColumnarFuncNode(expr))
+            TreeBuilder.makeFunction("action_stddev_samp_partial",
+              childrenColumnarFuncNodeList.asJava, resultType)
+          case Final =>
+            val childrenColumnarFuncNodeList =
+              List(inputAttrQueue.dequeue, inputAttrQueue.dequeue, inputAttrQueue.dequeue).map(attr =>
+                getColumnarFuncNode(attr))
+            logInfo(s"childrenColumnarFuncNodeList is ${childrenColumnarFuncNodeList}")
+            TreeBuilder.makeFunction("action_stddev_samp_final",
+              childrenColumnarFuncNodeList.asJava, resultType)
+        }
       case other =>
         throw new UnsupportedOperationException(s"not currently supported: $other.")
     }
@@ -444,6 +459,13 @@ object ColumnarGroupbyHashAggregation extends Logging {
           val aggBufferAttr = min.inputAggBufferAttributes
           val attr = ConverterUtils.getAttrFromExpr(aggBufferAttr(0))
           aggregateAttr += attr
+        case StddevSamp(_) =>
+          val stddevSamp = aggregateFunc.asInstanceOf[StddevSamp]
+          val aggBufferAttr = stddevSamp.inputAggBufferAttributes
+          for (index <- 0 until aggBufferAttr.size) {
+            val attr = ConverterUtils.getAttrFromExpr(aggBufferAttr(index))
+            aggregateAttr += attr
+          }
         case other =>
           throw new UnsupportedOperationException(s"not currently supported: $other.")
       }

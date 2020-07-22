@@ -38,7 +38,7 @@ arrow::Status MakeExprVisitor(std::shared_ptr<arrow::Schema> schema_ptr,
                               std::shared_ptr<gandiva::Expression> expr,
                               std::vector<std::shared_ptr<arrow::Field>> ret_fields,
                               ExprVisitorMap* expr_visitor_cache,
-                              std::shared_ptr<ExprVisitor>* out) {                       
+                              std::shared_ptr<ExprVisitor>* out) {
   auto visitor = std::make_shared<BuilderVisitor>(schema_ptr, expr->root(), ret_fields,
                                                   expr_visitor_cache);
   RETURN_NOT_OK(visitor->Eval());
@@ -322,7 +322,8 @@ arrow::Status ExprVisitor::MakeExprVisitorImpl(const std::string& func_name,
       func_name.compare("unique") == 0 || func_name.compare("append") == 0 ||
       func_name.compare("sum_count") == 0 || func_name.compare("avgByCount") == 0 ||
       func_name.compare("min") == 0 || func_name.compare("max") == 0 || 
-      func_name.compare("stddev_samp_partial") == 0) {  
+      func_name.compare("stddev_samp_partial") == 0 || 
+      func_name.compare("stddev_samp_final") == 0) {  
     RETURN_NOT_OK(AggregateVisitorImpl::Make(p, func_name, &impl_));
     goto finish;
   }
