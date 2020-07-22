@@ -242,10 +242,8 @@ class HashAggregateKernel::Impl {
       auto result_cached_array_list_tmp = action->GetFinishVariablesArrayList();
       i = 0;
       for (auto sig : result_variables_list) {
-        std::cout<<"sig is "<<sig<<std::endl;
         if (std::find(result_cached_list.begin(), result_cached_list.end(), sig) ==
             result_cached_list.end()) {
-          std::cout<<"not found"<<std::endl;
           result_cached_list.push_back(sig);
           on_finish_ss << on_finish_list[i] << std::endl;
           result_cached_define_ss << result_cached_define_list[i] << std::endl;
@@ -255,7 +253,6 @@ class HashAggregateKernel::Impl {
           result_cached_to_array_ss << result_cached_to_array_list[i] << std::endl;
         }
         result_cached_array_list.push_back(result_cached_array_list_tmp[i]);
-        std::cout<<"i is "<<i<<std::endl;
         i++;
       }
     }
@@ -430,6 +427,7 @@ class TypedGroupbyHashAggregateImpl : public CodeGenBase {
            R"(
       *out = arrow::RecordBatch::Make(result_schema_, length, {)" +
            result_cached_array_str + R"(});
+      //arrow::PrettyPrint(*(*out).get(), 2, &std::cout);     
       return arrow::Status::OK();
     }
 

@@ -47,7 +47,6 @@
 #include <fstream>
 #include <iostream>
 #include <unordered_map>
-#include <typeinfo>
 
 #include "codegen/arrow_compute/ext/actions_impl.h"
 #include "codegen/arrow_compute/ext/array_item_index.h"
@@ -820,19 +819,16 @@ class StddevSampPartialArrayKernel::Impl {
     double mean_res = mean_typed_scalar->value * 1.0;
     double m2_res = 0;
 
-    // if(!array.is_arraylike()) {
-    //   return arrow::Status::Invalid("AggregateKernel expects Array or ChunkedArray datum");
-    // }
-    // if chunked array
+    if(!value.is_arraylike()) {
+      return arrow::Status::Invalid("AggregateKernel expects Array or ChunkedArray datum");
+    }
+    // if chunked array ?
     if (value.is_array()) {
       auto array = value.make_array();
-      // if null_count > 0
       auto typed_array = std::static_pointer_cast<arrow::NumericArray<ValueType>>(array);
-      std::cout<<"ValueType is "<<typeid(ValueType).name()<<std::endl;
       const ValueCType* input = typed_array->raw_values();
       for (int64_t i = 0; i < (*array).length(); i++) {
         auto val = input[i];
-        std::cout<<val<<std::endl;
         if (val) {
           m2_res += (input[i] * 1.0 - mean_res) * (input[i] * 1.0 - mean_res);
         }
@@ -846,7 +842,7 @@ class StddevSampPartialArrayKernel::Impl {
   const arrow::compute::Datum& mean, arrow::compute::Datum* out) {
     arrow::compute::Datum value = array.data();
     auto data_type = value.type();
-    // auto array = value.make_array();
+    
     if (data_type == nullptr)
       return arrow::Status::Invalid("Datum must be array-like");
     else if (!is_integer(data_type->id()) && !is_floating(data_type->id()))
@@ -883,9 +879,9 @@ class StddevSampPartialArrayKernel::Impl {
     return arrow::Status::OK();
   }
 
-#define PROCESS_INTERNAL(SumDataType, CntDataType, MeanDataType, M2DataType) \
+#define PROCESS_INTERNAL(SumDataType, CntDataType) \
   case CntDataType::type_id: {                     \
-    FinishInternal<SumDataType, CntDataType, MeanDataType, M2DataType>(out); \
+    FinishInternal<SumDataType, CntDataType>(out); \
   } break;
 
   arrow::Status Finish(ArrayList* out) {
@@ -893,9 +889,9 @@ class StddevSampPartialArrayKernel::Impl {
 #define PROCESS(SumDataType)                           \
   case SumDataType::type_id: {                         \
     switch (cnt_res_data_type_->id()) {                \
-      PROCESS_INTERNAL(SumDataType, arrow::UInt64Type, arrow::DoubleType, arrow::DoubleType) \
-      PROCESS_INTERNAL(SumDataType, arrow::Int64Type, arrow::DoubleType, arrow::DoubleType)  \
-      PROCESS_INTERNAL(SumDataType, arrow::DoubleType, arrow::DoubleType, arrow::DoubleType) \
+      PROCESS_INTERNAL(SumDataType, arrow::UInt64Type) \
+      PROCESS_INTERNAL(SumDataType, arrow::Int64Type)  \
+      PROCESS_INTERNAL(SumDataType, arrow::DoubleType) \
     }                                                  \
   } break;
       PROCESS_SUPPORTED_TYPES(PROCESS)
@@ -905,35 +901,34 @@ class StddevSampPartialArrayKernel::Impl {
     return arrow::Status::OK();
   }
 
-  template <typename SumDataType, typename CntDataType, typename MeanDataType, typename M2DataType>
+  template <typename SumDataType, typename CntDataType>
   arrow::Status FinishInternal(ArrayList* out) {
     using SumCType = typename arrow::TypeTraits<SumDataType>::CType;
     using CntCType = typename arrow::TypeTraits<CntDataType>::CType;
-    using MeanCType = typename arrow::TypeTraits<MeanDataType>::CType;
-    using M2CType = typename arrow::TypeTraits<M2DataType>::CType;
+    using DoubleCType = typename arrow::TypeTraits<arrow::DoubleType>::CType;
     using SumScalarType = typename arrow::TypeTraits<SumDataType>::ScalarType;
     using CntScalarType = typename arrow::TypeTraits<CntDataType>::ScalarType;
-    using MeanScalarType = typename arrow::TypeTraits<MeanDataType>::ScalarType;
-    using M2ScalarType = typename arrow::TypeTraits<M2DataType>::ScalarType;
+    using DoubleScalarType = typename arrow::TypeTraits<arrow::DoubleType>::ScalarType;
     SumCType sum_res = 0;
-    CntCType cnt_res = 0;
-    MeanCType mean_res = 0;
-    M2CType m2_res = 0;
+    DoubleCType cnt_res = 0;
+    DoubleCType mean_res = 0;
+    DoubleCType m2_res = 0;
     for (size_t i = 0; i < sum_scalar_list_.size(); i++) {
       auto sum_typed_scalar =
           std::dynamic_pointer_cast<SumScalarType>(sum_scalar_list_[i]);
       auto cnt_typed_scalar =
           std::dynamic_pointer_cast<CntScalarType>(cnt_scalar_list_[i]);
       auto mean_typed_scalar =
-          std::dynamic_pointer_cast<MeanScalarType>(mean_scalar_list_[i]);
+          std::dynamic_pointer_cast<DoubleScalarType>(mean_scalar_list_[i]);
       auto m2_typed_scalar =
-          std::dynamic_pointer_cast<M2ScalarType>(m2_scalar_list_[i]);
+          std::dynamic_pointer_cast<DoubleScalarType>(m2_scalar_list_[i]);
       double pre_avg = sum_res * 1.0 / (cnt_res > 0 ? cnt_res : 1);
       double delta = mean_typed_scalar->value - pre_avg;
-      double deltaN = (cnt_typed_scalar->value < 0.000001) ? 0.0 : delta / (cnt_res + cnt_typed_scalar->value);
+      double newN = (cnt_res + cnt_typed_scalar->value) * 1.0;
+      double deltaN = newN > 0 ? delta / newN : 0.0;
       m2_res += m2_typed_scalar->value + delta * deltaN * cnt_res * cnt_typed_scalar->value;
       sum_res += sum_typed_scalar->value;
-      cnt_res += cnt_typed_scalar->value;
+      cnt_res += cnt_typed_scalar->value * 1.0;
     }
     double avg = sum_res * 1.0 / cnt_res;
     std::shared_ptr<arrow::Array> cnt_out;
@@ -997,42 +992,47 @@ class StddevSampFinalArrayKernel::Impl {
       : ctx_(ctx), data_type_(data_type) {}
   ~Impl() {}
 
-  template <typename ValueType>
   arrow::Status getAvgM2(arrow::compute::FunctionContext* ctx, const arrow::compute::Datum& cnt_value, 
   const arrow::compute::Datum& avg_value, const arrow::compute::Datum& m2_value, 
   arrow::compute::Datum* avg_out, arrow::compute::Datum* m2_out) {
     using MeanCType = typename arrow::TypeTraits<arrow::DoubleType>::CType;
     using MeanScalarType = typename arrow::TypeTraits<arrow::DoubleType>::ScalarType;
-    using ValueCType = typename arrow::TypeTraits<ValueType>::CType;
-
-    // if(!array.is_arraylike()) {
-    //   return arrow::Status::Invalid("AggregateKernel expects Array or ChunkedArray datum");
-    // }
-    // if chunked array
+    using ValueCType = typename arrow::TypeTraits<arrow::DoubleType>::CType;
+    
+    if(!(cnt_value.is_arraylike() && avg_value.is_arraylike() && m2_value.is_arraylike())) {
+      return arrow::Status::Invalid("AggregateKernel expects Array or ChunkedArray datum");
+    }
+    // if chunked array?
     if (cnt_value.is_array()) {
       auto cnt_array = cnt_value.make_array();
       auto avg_array = avg_value.make_array();
       auto m2_array = m2_value.make_array();
-      auto cnt_typed_array = std::static_pointer_cast<arrow::NumericArray<ValueType>>(cnt_array);
+      
+      auto cnt_typed_array = std::static_pointer_cast<arrow::DoubleArray>(cnt_array);
       auto avg_typed_array = std::static_pointer_cast<arrow::DoubleArray>(avg_array);
       auto m2_typed_array = std::static_pointer_cast<arrow::DoubleArray>(m2_array);
-      // std::cout<<"ValueType is "<<typeid(ValueType).name()<<std::endl;
       const ValueCType* cnt_input = cnt_typed_array->raw_values();
       const MeanCType* avg_input = avg_typed_array->raw_values();
       const MeanCType* m2_input = m2_typed_array->raw_values();
 
-      double cnt_res = cnt_input[0] * 1.0;
-      double avg_res = avg_input[0];
-      double m2_res = m2_input[0];
-      for (int64_t i = 1; i < (*cnt_array).length(); i++) {
-        auto cnt_val = cnt_input[i] * 1.0;
-        auto avg_val = avg_input[i];
-        auto m2_val = m2_input[i];
-        double delta = avg_val - avg_res;
-        double deltaN = (cnt_res + cnt_val) > 0 ? delta / (cnt_res + cnt_val) : 0;
-        avg_res += deltaN * cnt_val;
-        m2_res += (m2_val + delta * deltaN * cnt_res * cnt_val);
-        cnt_res += cnt_val;
+      double cnt_res = 0;
+      double avg_res = 0;
+      double m2_res = 0;
+      for (int64_t i = 0; i < (*cnt_array).length(); i++) {
+        double cnt_val = cnt_input[i];
+        double avg_val = avg_input[i];
+        double m2_val = m2_input[i];
+        if (i == 0) {
+          cnt_res = cnt_val;
+          avg_res = avg_val;
+          m2_res = m2_val;
+        } else {
+          double delta = avg_val - avg_res;
+          double deltaN = (cnt_res + cnt_val) > 0 ? delta / (cnt_res + cnt_val) : 0;
+          avg_res += deltaN * cnt_val;
+          m2_res += (m2_val + delta * deltaN * cnt_res * cnt_val);
+          cnt_res += cnt_val;
+        }
       }
       *avg_out = arrow::MakeScalar(avg_res);
       *m2_out = arrow::MakeScalar(m2_res);
@@ -1051,14 +1051,7 @@ class StddevSampFinalArrayKernel::Impl {
       return arrow::Status::Invalid("Datum must be array-like");
     else if (!is_integer(cnt_data_type->id()) && !is_floating(cnt_data_type->id()))
       return arrow::Status::Invalid("Datum must contain a NumericType");
-    switch (cnt_data_type->id()) {
-      #define PROCESS(DataType)                         \
-        case DataType::type_id: {                       \
-          RETURN_NOT_OK(getAvgM2<DataType>(ctx, cnt_value, avg_value, m2_value, avg_out, m2_out)); \
-        } break;
-            PROCESS_SUPPORTED_TYPES(PROCESS)
-      #undef PROCESS
-    }
+    RETURN_NOT_OK(getAvgM2(ctx, cnt_value, avg_value, m2_value, avg_out, m2_out));
     return arrow::Status::OK();
   }
 
@@ -1072,58 +1065,38 @@ class StddevSampFinalArrayKernel::Impl {
     avg_scalar_list_.push_back(avg_out.scalar());
     m2_scalar_list_.push_back(m2_out.scalar());
     cnt_res_data_type_ = cnt_out.scalar()->type;
-    avg_res_data_type_ = avg_out.scalar()->type;
-    m2_res_data_type_ = m2_out.scalar()->type;
     return arrow::Status::OK();
   }
 
   arrow::Status Finish(ArrayList* out) {
-  switch (cnt_res_data_type_->id()) {
-#define PROCESS(DataType)                         \
-  case DataType::type_id: {                       \
-      FinishInternal<DataType>(out); \
-  } break;
-      PROCESS_SUPPORTED_TYPES(PROCESS)
-#undef PROCESS
-    return arrow::Status::OK();
-  }
-  }
-
-  template <typename CntDataType>
-  arrow::Status FinishInternal(ArrayList* out) {
-    using CntCType = typename arrow::TypeTraits<CntDataType>::CType;
-    using AvgCType = typename arrow::TypeTraits<arrow::DoubleType>::CType;
-    using M2CType = typename arrow::TypeTraits<arrow::DoubleType>::CType;
-    using CntScalarType = typename arrow::TypeTraits<CntDataType>::ScalarType;
-    using AvgScalarType = typename arrow::TypeTraits<arrow::DoubleType>::ScalarType;
-    using M2ScalarType = typename arrow::TypeTraits<arrow::DoubleType>::ScalarType;
-    CntCType cnt_res = 0;
-    AvgCType avg_res = 0;
-    M2CType m2_res = 0;
-
-    auto cnt_typed_scalar = 
-        std::dynamic_pointer_cast<CntScalarType>(cnt_scalar_list_[0]);
-    auto avg_typed_scalar =
-        std::dynamic_pointer_cast<AvgScalarType>(avg_scalar_list_[0]);
-    auto m2_typed_scalar =
-        std::dynamic_pointer_cast<M2ScalarType>(m2_scalar_list_[0]);
-    cnt_res = cnt_typed_scalar->value;
-    avg_res = avg_typed_scalar->value;
-    m2_res = m2_typed_scalar->value;
-    for (size_t i = 1; i < cnt_scalar_list_.size(); i++) {
-      cnt_typed_scalar =
-          std::dynamic_pointer_cast<CntScalarType>(cnt_scalar_list_[i]);
-      avg_typed_scalar =
-          std::dynamic_pointer_cast<AvgScalarType>(avg_scalar_list_[i]);
-      m2_typed_scalar =
-          std::dynamic_pointer_cast<M2ScalarType>(m2_scalar_list_[i]);
-      double delta = avg_typed_scalar->value - avg_res;
-      double deltaN = (cnt_res + cnt_typed_scalar->value) > 0 ? delta / (cnt_res + cnt_typed_scalar->value) : 0;
-      m2_res += m2_typed_scalar->value + delta * deltaN * cnt_res * cnt_typed_scalar->value;
-      cnt_res += cnt_typed_scalar->value;
+    using DoubleCType = typename arrow::TypeTraits<arrow::DoubleType>::CType;
+    using DoubleScalarType = typename arrow::TypeTraits<arrow::DoubleType>::ScalarType;
+    
+    DoubleCType cnt_res = 0;
+    DoubleCType avg_res = 0;
+    DoubleCType m2_res = 0;
+    for (size_t i = 0; i < cnt_scalar_list_.size(); i++) {
+      auto cnt_typed_scalar =
+          std::dynamic_pointer_cast<DoubleScalarType>(cnt_scalar_list_[i]);
+      auto avg_typed_scalar =
+          std::dynamic_pointer_cast<DoubleScalarType>(avg_scalar_list_[i]);
+      auto m2_typed_scalar =
+          std::dynamic_pointer_cast<DoubleScalarType>(m2_scalar_list_[i]);
+      if (i == 0) {
+        cnt_res = cnt_typed_scalar->value;
+        avg_res = avg_typed_scalar->value;
+        m2_res = m2_typed_scalar->value;
+      } else {
+        double delta = avg_typed_scalar->value - avg_res;
+        double newN = cnt_res + cnt_typed_scalar->value;
+        double deltaN = newN > 0 ? delta / newN : 0;
+        avg_res += deltaN * cnt_typed_scalar->value;
+        m2_res += (m2_typed_scalar->value + delta * deltaN * cnt_res * cnt_typed_scalar->value);
+        cnt_res += cnt_typed_scalar->value;
+      }
     }
 
-    double stddev_samp = sqrt(m2_res / (cnt_res - 1));
+    double stddev_samp = sqrt(m2_res / (cnt_res > 1 ? (cnt_res - 1) : 1));
     std::shared_ptr<arrow::Array> stddev_samp_out;
     std::shared_ptr<arrow::Scalar> stddev_samp_scalar_out;
     stddev_samp_scalar_out = arrow::MakeScalar(stddev_samp);
@@ -1137,8 +1110,6 @@ class StddevSampFinalArrayKernel::Impl {
   arrow::compute::FunctionContext* ctx_;
   std::shared_ptr<arrow::DataType> data_type_;
   std::shared_ptr<arrow::DataType> cnt_res_data_type_;
-  std::shared_ptr<arrow::DataType> avg_res_data_type_;
-  std::shared_ptr<arrow::DataType> m2_res_data_type_;
   std::vector<std::shared_ptr<arrow::Scalar>> cnt_scalar_list_;
   std::vector<std::shared_ptr<arrow::Scalar>> avg_scalar_list_;
   std::vector<std::shared_ptr<arrow::Scalar>> m2_scalar_list_;

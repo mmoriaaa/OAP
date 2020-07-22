@@ -194,4 +194,18 @@ class ColumnarHashAggregateExec(
     }
   }
 
+  override def verboseString(maxFields: Int): String = "<Columnar>" + super.verboseString(maxFields)
+
+  override def simpleString(maxFields: Int): String = "<Columnar>" + super.verboseString(maxFields)
+
+  override def canEqual(other: Any): Boolean = other.isInstanceOf[ColumnarShuffledHashJoinExec]
+
+  override def equals(other: Any): Boolean = other match {
+    case that: ColumnarShuffledHashJoinExec =>
+      (that canEqual this) && (that eq this)
+    case _ => false
+  }
+
+  override def hashCode(): Int = System.identityHashCode(this)
+
 }

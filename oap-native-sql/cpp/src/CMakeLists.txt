@@ -12,7 +12,7 @@ set(CMAKE_CXX_STANDARD 14)
 # We require a C++11 compliant compiler
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-set(CMAKE_BUILD_TYPE  "Debug")
+set(CMAKE_BUILD_TYPE  "DEBUG")
 
 option(TESTS "Build the tests" OFF)
 option(BENCHMARKS "Build the benchmarks" OFF)
