@@ -1093,8 +1093,8 @@ class StddevSampPartialAction : public ActionBase {
           double delta = data_[row_id] * 1.0 - pre_avg;
           double deltaN = delta / (cache_count_[dest_group_id] + 1);
           cache_m2_[dest_group_id] += delta * deltaN * cache_count_[dest_group_id];
-          cache_sum_[dest_group_id] += data_[row_id];
-          cache_count_[dest_group_id] += 1;
+          cache_sum_[dest_group_id] += data_[row_id] * 1.0;
+          cache_count_[dest_group_id] += 1.0;
         }
         row_id++;
         return arrow::Status::OK();
@@ -1107,8 +1107,8 @@ class StddevSampPartialAction : public ActionBase {
         double delta = data_[row_id] * 1.0 - pre_avg;
         double deltaN = delta / (cache_count_[dest_group_id] + 1);
         cache_m2_[dest_group_id] += delta * deltaN * cache_count_[dest_group_id];
-        cache_sum_[dest_group_id] += data_[row_id];
-        cache_count_[dest_group_id] += 1;
+        cache_sum_[dest_group_id] += data_[row_id] * 1.0;
+        cache_count_[dest_group_id] += 1.0;
         row_id++;
         return arrow::Status::OK();
       };
@@ -1123,13 +1123,13 @@ class StddevSampPartialAction : public ActionBase {
   arrow::Status Finish(ArrayList* out) override {
     // get count
     std::shared_ptr<arrow::Array> count_array;
-    auto count_builder = new arrow::Int64Builder(ctx_->memory_pool());
+    auto count_builder = new arrow::DoubleBuilder(ctx_->memory_pool());
     RETURN_NOT_OK(count_builder->AppendValues(cache_count_, cache_validity_));
     RETURN_NOT_OK(count_builder->Finish(&count_array));
     // get avg
     std::shared_ptr<arrow::Array> avg_array;
     for (int i = 0; i < cache_sum_.size(); i++) {
-      cache_sum_[i] /= cache_count_[i];
+      cache_sum_[i] /= cache_count_[i] * 1.0;
     }
     auto avg_builder = new arrow::DoubleBuilder(ctx_->memory_pool());
     RETURN_NOT_OK(avg_builder->AppendValues(cache_sum_, cache_validity_));
@@ -1150,9 +1150,9 @@ class StddevSampPartialAction : public ActionBase {
 
   arrow::Status Finish(uint64_t offset, uint64_t length, ArrayList* out) override {
     for (int i = 0; i < length; i++) {
-      cache_sum_[i + offset] /= cache_count_[i + offset];
+      cache_sum_[i + offset] /= cache_count_[i + offset] * 1.0;
     }
-    auto count_builder = new arrow::Int64Builder(ctx_->memory_pool());
+    auto count_builder = new arrow::DoubleBuilder(ctx_->memory_pool());
     auto avg_builder = new arrow::DoubleBuilder(ctx_->memory_pool());
     auto m2_builder = new arrow::DoubleBuilder(ctx_->memory_pool());
     for (uint64_t i = 0; i < length; i++) {
@@ -1191,7 +1191,7 @@ class StddevSampPartialAction : public ActionBase {
   int row_id;
   // result
   std::vector<double> cache_sum_;
-  std::vector<int64_t> cache_count_;
+  std::vector<double> cache_count_;
   std::vector<double> cache_m2_;
   std::vector<bool> cache_validity_;
 };
@@ -1227,7 +1227,7 @@ class StddevSampFinalAction : public ActionBase {
     in_avg_ = in_list[1];
     in_m2_ = in_list[2];
     // prepare evaluate lambda
-    data_count_ = const_cast<int64_t*>(in_count_->data()->GetValues<int64_t>(1));
+    data_count_ = const_cast<double*>(in_count_->data()->GetValues<double>(1));
     data_avg_ = const_cast<double*>(in_avg_->data()->GetValues<double>(1));
     data_m2_ = const_cast<double*>(in_m2_->data()->GetValues<double>(1));
     row_id = 0;
@@ -1238,8 +1238,8 @@ class StddevSampFinalAction : public ActionBase {
           cache_validity_[dest_group_id] = true;
           double pre_avg = cache_avg_[dest_group_id];
           double delta = data_avg_[row_id] - pre_avg;
-          int64_t n1 = cache_count_[dest_group_id];
-          int64_t n2 = data_count_[row_id];
+          double n1 = cache_count_[dest_group_id];
+          double n2 = data_count_[row_id];
           double deltaN = (n1 + n2) > 0 ? delta / (n1 + n2) : 0;
           cache_m2_[dest_group_id] += (data_m2_[row_id] + delta * deltaN * n1 * n2);
           cache_avg_[dest_group_id] += deltaN * n2;
@@ -1253,8 +1253,8 @@ class StddevSampFinalAction : public ActionBase {
         cache_validity_[dest_group_id] = true;
         double pre_avg = cache_avg_[dest_group_id];
         double delta = data_avg_[row_id] - pre_avg;
-        int64_t n1 = cache_count_[dest_group_id];
-        int64_t n2 = data_count_[row_id];
+        double n1 = cache_count_[dest_group_id];
+        double n2 = data_count_[row_id];
         double deltaN = (n1 + n2) > 0 ? delta / (n1 + n2) : 0;
         cache_m2_[dest_group_id] += (data_m2_[row_id] + delta * deltaN * n1 * n2);
         cache_avg_[dest_group_id] += deltaN * n2;
@@ -1312,7 +1312,7 @@ class StddevSampFinalAction : public ActionBase {
   using ResArrayType = typename arrow::TypeTraits<ResDataType>::ArrayType;
   // input
   arrow::compute::FunctionContext* ctx_;
-  int64_t* data_count_;
+  double* data_count_;
   double* data_avg_;
   double* data_m2_;
   int row_id;
@@ -1320,7 +1320,7 @@ class StddevSampFinalAction : public ActionBase {
   std::shared_ptr<arrow::Array> in_avg_;
   std::shared_ptr<arrow::Array> in_m2_;
   // result
-  std::vector<int64_t> cache_count_;
+  std::vector<double> cache_count_;
   std::vector<double> cache_avg_;
   std::vector<double> cache_m2_;
   std::vector<bool> cache_validity_;

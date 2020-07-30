@@ -501,8 +501,8 @@ TEST(TestArrowCompute, GroupByHashAggregateWithTwoStringTest) {
 TEST(TestArrowCompute, GroupByStddevSampPartialHashAggregateTest) {
   ////////////////////// prepare expr_vector ///////////////////////
   auto f0 = field("f0", uint32());
-  auto f1 = field("f1", uint32());
-  auto f2 = field("f2", uint32());
+  auto f1 = field("f1", float64());
+  auto f2 = field("f2", float64());
   auto f_unique = field("unique", uint32());
   auto f_n = field("count", float64());
   auto f_avg = field("avg", float64());
@@ -584,7 +584,7 @@ TEST(TestArrowCompute, GroupByStddevSampPartialHashAggregateTest) {
 TEST(TestArrowCompute, GroupByStddevSampFinalHashAggregateTest) {
   ////////////////////// prepare expr_vector ///////////////////////
   auto f0 = field("f0", uint32());
-  auto f1 = field("f1", uint32());
+  auto f1 = field("f1", float64());
   auto f2 = field("f2", float64());
   auto f3 = field("f3", float64());
   auto f_unique = field("unique", uint32());

@@ -928,7 +928,7 @@ class StddevSampPartialArrayKernel::Impl {
       double deltaN = newN > 0 ? delta / newN : 0.0;
       m2_res += m2_typed_scalar->value + delta * deltaN * cnt_res * cnt_typed_scalar->value;
       sum_res += sum_typed_scalar->value;
-      cnt_res += cnt_typed_scalar->value * 1.0;
+      cnt_res += cnt_typed_scalar->value  * 1.0;
     }
     double avg = sum_res * 1.0 / cnt_res;
     std::shared_ptr<arrow::Array> cnt_out;

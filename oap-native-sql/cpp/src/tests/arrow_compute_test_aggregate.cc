@@ -516,7 +516,6 @@ TEST(TestArrowCompute, StddevSampFinalTest) {
   auto f1 = field("f1", float64());
   auto f2 = field("f2", float64());
 
-//   auto f_count = field("count", int64());
   auto f_float = field("float", float64());
   auto f_res = field("res", uint32());
 
@@ -626,7 +625,7 @@ TEST(TestArrowCompute, GroupByStddevSampPartialWithMultipleBatchTest) {
 TEST(TestArrowCompute, GroupByStddevSampFinalWithMultipleBatchTest) {
   ////////////////////// prepare expr_vector ///////////////////////
   auto f0 = field("f0", uint32());
-  auto f1 = field("f1", int64());
+  auto f1 = field("f1", float64());
   auto f2 = field("f2", float64());
   auto f3 = field("f3", float64());
   auto f_unique = field("unique", uint32());
