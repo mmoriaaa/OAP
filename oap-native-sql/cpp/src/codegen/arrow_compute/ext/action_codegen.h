@@ -880,6 +880,7 @@ class StddevSampPartialActionCodeGen : public ActionCodeGen {
     std::stringstream prepare_codes_ss;
     prepare_codes_ss << GetCTypeString(data_type) << " " << sum_tmp_name << " = 0;"
                      << std::endl;
+    prepare_codes_ss << "bool is_null_" << sum_tmp_name << " = true;" << std::endl;                 
     prepare_codes_ss << "if (!" << typed_input_and_prepare_list_[0].first
                      << "->IsNull(cur_id_)) {" << std::endl;
     if (data_type->id() != arrow::Type::STRING) {
@@ -889,6 +890,7 @@ class StddevSampPartialActionCodeGen : public ActionCodeGen {
       prepare_codes_ss << sum_tmp_name << " = " << typed_input_and_prepare_list_[0].first
                        << "->GetString(cur_id_);" << std::endl;
     }
+    prepare_codes_ss << "is_null_" << sum_tmp_name << " = false;" << std::endl;
     prepare_codes_ss << "}" << std::endl;
 
     on_exists_prepare_codes_list_.push_back(""); 
@@ -898,8 +900,9 @@ class StddevSampPartialActionCodeGen : public ActionCodeGen {
     on_exists_codes_list_.push_back(prepare_codes_ss.str() + "\n" + "double pre_avg_" + name 
       + " = " + sig_name + "[i] * 1.0 / (" + count_name + "[i] > 0 ? " + count_name + "[i] : 1);\n" 
       + "double delta_" + name + " = " + sum_tmp_name + " * 1.0 - pre_avg_" + name + ";\n double deltaN_" 
-      + name + " = delta_" + name + " / (" + count_name + "[i] + 1);\n" + m2_name + "[i] += delta_" 
-      + name + "* deltaN_" + name + " * " + count_name + "[i];\n" + sig_name + "[i] += " + sum_tmp_name + ";\n");
+      + name + " = delta_" + name + " / (" + count_name + "[i] + 1);\n" + "if (!is_null_" + sum_tmp_name 
+      + ") {\n" + m2_name + "[i] += delta_" + name + "* deltaN_" + name + " * " + count_name 
+      + "[i];\n" + sig_name + "[i] += " + sum_tmp_name + ";\n }\n");
     on_new_codes_list_.push_back(prepare_codes_ss.str() + "\n" + sig_name + ".push_back(" + sum_tmp_name + ");\n"
       + "double stddev_" + name + " = 0;\n" + m2_name + ".push_back(stddev_" + name + ");\n");
     ///////////////////////////// Count //////////////////////////////////
@@ -911,9 +914,11 @@ class StddevSampPartialActionCodeGen : public ActionCodeGen {
     auto count_name_tmp = tmp_name + "_n";
     prepare_codes_ss << GetCTypeString(data_type) << " " << count_name_tmp << " = 0;"
                      << std::endl;
+    prepare_codes_ss << "bool is_null_" << count_name_tmp << " = true;" << std::endl;                 
     prepare_codes_ss << "if (!" << typed_input_and_prepare_list_[0].first
                      << "->IsNull(cur_id_)) {" << std::endl;
     prepare_codes_ss << count_name_tmp << " = 1;" << std::endl;
+    prepare_codes_ss << "is_null_" << count_name_tmp << " = false;" << std::endl;
     prepare_codes_ss << "}" << std::endl;
     func_sig_define_codes_list_.push_back(
         GetTypedVectorDefineString(data_type, sig_name) + ";\n");
@@ -1010,6 +1015,7 @@ class StddevSampFinalActionCodeGen : public ActionCodeGen {
     std::stringstream prepare_codes_ss;
     prepare_codes_ss << GetCTypeString(data_type) << " " << tmp_name << " = 0;"
                      << std::endl;
+    prepare_codes_ss << "bool is_null_" << tmp_name << " = true;" << std::endl; 
     prepare_codes_ss << "if (!" << typed_input_and_prepare_list_[0].first
                      << "->IsNull(cur_id_)) {" << std::endl;
     if (data_type->id() != arrow::Type::STRING) {
@@ -1019,14 +1025,17 @@ class StddevSampFinalActionCodeGen : public ActionCodeGen {
       prepare_codes_ss << tmp_name << " = " << typed_input_and_prepare_list_[0].first
                        << "->GetString(cur_id_);" << std::endl;
     }
+    prepare_codes_ss << "is_null_" << tmp_name << " = false;" << std::endl;
     prepare_codes_ss << "}" << std::endl;
 
     func_sig_define_codes_list_.push_back(
         GetTypedVectorDefineString(data_type, sig_name) + ";\n");
     on_exists_prepare_codes_list_.push_back(prepare_codes_ss.str() + "\n");
     on_new_prepare_codes_list_.push_back(prepare_codes_ss.str() + "\n");
-    on_exists_codes_list_.push_back("double pre_count_" + name + " = " + sig_name + "[i] * 1.0;\n" 
-    + "double new_count_" + name + " = " + tmp_name + " * 1.0;\n" + sig_name + "[i] += " + tmp_name + ";");
+    on_exists_codes_list_.push_back("double pre_count_" + name + " = " 
+        + sig_name + "[i] * 1.0;\n" + "double new_count_" + name + " = " + tmp_name 
+        + " * 1.0;\n" + "if(!is_null_" + tmp_name + ") {\n" 
+        + sig_name + "[i] += " + tmp_name + ";\n}\n");
     on_new_codes_list_.push_back(sig_name + ".push_back(" + tmp_name + ");");
     ///////////////////////////// Avg //////////////////////////////////
     sig_name = avg_name;
@@ -1037,6 +1046,7 @@ class StddevSampFinalActionCodeGen : public ActionCodeGen {
     prepare_codes_ss.str("");
     prepare_codes_ss << GetCTypeString(data_type) << " " << tmp_name << " = 0;"
                      << std::endl;
+    prepare_codes_ss << "bool is_null_" << tmp_name << " = true;" << std::endl;                 
     prepare_codes_ss << "if (!" << typed_input_and_prepare_list_[1].first
                      << "->IsNull(cur_id_)) {" << std::endl;
     if (data_type->id() != arrow::Type::STRING) {
@@ -1046,6 +1056,7 @@ class StddevSampFinalActionCodeGen : public ActionCodeGen {
       prepare_codes_ss << tmp_name << " = " << typed_input_and_prepare_list_[1].first
                        << "->GetString(cur_id_);" << std::endl;
     }
+    prepare_codes_ss << "is_null_" << tmp_name << " = false;" << std::endl;
     prepare_codes_ss << "}" << std::endl;
 
     func_sig_define_codes_list_.push_back(
@@ -1055,7 +1066,8 @@ class StddevSampFinalActionCodeGen : public ActionCodeGen {
     on_exists_codes_list_.push_back("double delta_" + name  + " = " + tmp_name 
         + " - " + sig_name + "[i];\n" + "double deltaN_" + name + " = " + count_name 
         + "[i] > 0 ? delta_" + name  + " / " + count_name + "[i] : 0;\n"
-        + sig_name + "[i] += deltaN_" + name +" * new_count_" + name + ";\n");
+        + "if(!is_null_" + tmp_name + ") {\n" 
+        + sig_name + "[i] += deltaN_" + name +" * new_count_" + name + ";\n}\n");
     on_new_codes_list_.push_back(sig_name + ".push_back(" + tmp_name + ");");
     ///////////////////////////// M2 //////////////////////////////////
     sig_name = m2_name;
@@ -1066,6 +1078,7 @@ class StddevSampFinalActionCodeGen : public ActionCodeGen {
     prepare_codes_ss.str("");
     prepare_codes_ss << GetCTypeString(data_type) << " " << tmp_name << " = 0;"
                      << std::endl;
+    prepare_codes_ss << "bool is_null_" << tmp_name << " = true;" << std::endl;                 
     prepare_codes_ss << "if (!" << typed_input_and_prepare_list_[2].first
                      << "->IsNull(cur_id_)) {" << std::endl;
     if (data_type->id() != arrow::Type::STRING) {
@@ -1075,14 +1088,16 @@ class StddevSampFinalActionCodeGen : public ActionCodeGen {
       prepare_codes_ss << tmp_name << " = " << typed_input_and_prepare_list_[2].first
                        << "->GetString(cur_id_);" << std::endl;
     }
+    prepare_codes_ss << "is_null_" << tmp_name << " = false;" << std::endl;
     prepare_codes_ss << "}" << std::endl;
 
     func_sig_define_codes_list_.push_back(
         GetTypedVectorDefineString(data_type, sig_name) + ";\n");
     on_exists_prepare_codes_list_.push_back(prepare_codes_ss.str() + "\n");
     on_new_prepare_codes_list_.push_back(prepare_codes_ss.str() + "\n");
-    on_exists_codes_list_.push_back(sig_name + "[i] += (" + tmp_name + " + delta_" + name 
-      + " * deltaN_" + name +" * pre_count_" + name + " * new_count_" + name + ");\n");
+    on_exists_codes_list_.push_back("if(!is_null_" + tmp_name + ") {\n"
+        + sig_name + "[i] += (" + tmp_name + " + delta_" + name + " * deltaN_" + name 
+        +" * pre_count_" + name + " * new_count_" + name + ");\n}\n");
     on_new_codes_list_.push_back(sig_name + ".push_back(" + tmp_name + ");");    
     ///////////////////////////// Stddev //////////////////////////////////
     sig_name = "action_stddev_" + name + "_";
