@@ -57,7 +57,7 @@ TEST(TestArrowCompute, AggregatewithMultipleBatchTest) {
       sum_expr, count_expr, sum_count_expr, avg_expr, min_expr, max_expr, stddev_samp_partial_expr};
   auto sch = arrow::schema({f0, f1, f2});
   std::vector<std::shared_ptr<Field>> ret_types = {f_sum, f_count, f_sum, f_count,
-                                                   f_float, f_res, f_res, f_count, f_float, f_float};
+                                                   f_float, f_res, f_res, f_float, f_float, f_float};
   ///////////////////// Calculation //////////////////
   std::shared_ptr<CodeGenerator> expr;
   ASSERT_NOT_OK(CreateCodeGenerator(sch, expr_vector, ret_types, &expr, true));
@@ -79,7 +79,7 @@ TEST(TestArrowCompute, AggregatewithMultipleBatchTest) {
   std::vector<std::string> expected_result_string = {"[601]",   "[19]", "[601]", "[19]", "[30.05]",
                                                       "[8]", "[70]", "[19]", "[31.6316]", "[8080.42]"};
   auto res_sch = arrow::schema({f_sum, f_count, f_sum, f_count, f_float, f_res, 
-                                f_res, f_count, f_float, f_float});
+                                f_res, f_float, f_float, f_float});
   MakeInputBatch(expected_result_string, res_sch, &expected_result);
   ASSERT_NOT_OK(Equals(*expected_result.get(), *(result_batch[0]).get()));
 }

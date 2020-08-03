@@ -960,7 +960,6 @@ public final class ArrowWritableColumnVector extends WritableColumnVector {
 
     @Override
     final double getDouble(int rowId) {
-      if (isNullAt(rowId)) return 0.0;
       return accessor.get(rowId);
     }
 
