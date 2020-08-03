@@ -819,19 +819,16 @@ class StddevSampPartialArrayKernel::Impl {
     double mean_res = mean_typed_scalar->value * 1.0;
     double m2_res = 0;
 
-    if(!value.is_arraylike()) {
-      return arrow::Status::Invalid("AggregateKernel expects Array or ChunkedArray datum");
+    if(!value.is_array()) {
+      return arrow::Status::Invalid("AggregateKernel expects Array");
     }
-    // if chunked array ?
-    if (value.is_array()) {
-      auto array = value.make_array();
-      auto typed_array = std::static_pointer_cast<arrow::NumericArray<ValueType>>(array);
-      const ValueCType* input = typed_array->raw_values();
-      for (int64_t i = 0; i < (*array).length(); i++) {
-        auto val = input[i];
-        if (val) {
-          m2_res += (input[i] * 1.0 - mean_res) * (input[i] * 1.0 - mean_res);
-        }
+    auto array = value.make_array();
+    auto typed_array = std::static_pointer_cast<arrow::NumericArray<ValueType>>(array);
+    const ValueCType* input = typed_array->raw_values();
+    for (int64_t i = 0; i < (*array).length(); i++) {
+      auto val = input[i];
+      if (val) {
+        m2_res += (input[i] * 1.0 - mean_res) * (input[i] * 1.0 - mean_res);
       }
     }
     *out = arrow::MakeScalar(m2_res);
@@ -999,44 +996,42 @@ class StddevSampFinalArrayKernel::Impl {
     using MeanScalarType = typename arrow::TypeTraits<arrow::DoubleType>::ScalarType;
     using ValueCType = typename arrow::TypeTraits<arrow::DoubleType>::CType;
     
-    if(!(cnt_value.is_arraylike() && avg_value.is_arraylike() && m2_value.is_arraylike())) {
-      return arrow::Status::Invalid("AggregateKernel expects Array or ChunkedArray datum");
+    if(!(cnt_value.is_array() && avg_value.is_array() && m2_value.is_array())) {
+      return arrow::Status::Invalid("AggregateKernel expects Array datum");
     }
-    // if chunked array?
-    if (cnt_value.is_array()) {
-      auto cnt_array = cnt_value.make_array();
-      auto avg_array = avg_value.make_array();
-      auto m2_array = m2_value.make_array();
-      
-      auto cnt_typed_array = std::static_pointer_cast<arrow::DoubleArray>(cnt_array);
-      auto avg_typed_array = std::static_pointer_cast<arrow::DoubleArray>(avg_array);
-      auto m2_typed_array = std::static_pointer_cast<arrow::DoubleArray>(m2_array);
-      const ValueCType* cnt_input = cnt_typed_array->raw_values();
-      const MeanCType* avg_input = avg_typed_array->raw_values();
-      const MeanCType* m2_input = m2_typed_array->raw_values();
 
-      double cnt_res = 0;
-      double avg_res = 0;
-      double m2_res = 0;
-      for (int64_t i = 0; i < (*cnt_array).length(); i++) {
-        double cnt_val = cnt_input[i];
-        double avg_val = avg_input[i];
-        double m2_val = m2_input[i];
-        if (i == 0) {
-          cnt_res = cnt_val;
-          avg_res = avg_val;
-          m2_res = m2_val;
-        } else {
-          double delta = avg_val - avg_res;
-          double deltaN = (cnt_res + cnt_val) > 0 ? delta / (cnt_res + cnt_val) : 0;
-          avg_res += deltaN * cnt_val;
-          m2_res += (m2_val + delta * deltaN * cnt_res * cnt_val);
-          cnt_res += cnt_val;
-        }
+    auto cnt_array = cnt_value.make_array();
+    auto avg_array = avg_value.make_array();
+    auto m2_array = m2_value.make_array();
+    
+    auto cnt_typed_array = std::static_pointer_cast<arrow::DoubleArray>(cnt_array);
+    auto avg_typed_array = std::static_pointer_cast<arrow::DoubleArray>(avg_array);
+    auto m2_typed_array = std::static_pointer_cast<arrow::DoubleArray>(m2_array);
+    const ValueCType* cnt_input = cnt_typed_array->raw_values();
+    const MeanCType* avg_input = avg_typed_array->raw_values();
+    const MeanCType* m2_input = m2_typed_array->raw_values();
+
+    double cnt_res = 0;
+    double avg_res = 0;
+    double m2_res = 0;
+    for (int64_t i = 0; i < (*cnt_array).length(); i++) {
+      double cnt_val = cnt_input[i];
+      double avg_val = avg_input[i];
+      double m2_val = m2_input[i];
+      if (i == 0) {
+        cnt_res = cnt_val;
+        avg_res = avg_val;
+        m2_res = m2_val;
+      } else {
+        double delta = avg_val - avg_res;
+        double deltaN = (cnt_res + cnt_val) > 0 ? delta / (cnt_res + cnt_val) : 0;
+        avg_res += deltaN * cnt_val;
+        m2_res += (m2_val + delta * deltaN * cnt_res * cnt_val);
+        cnt_res += cnt_val;
       }
-      *avg_out = arrow::MakeScalar(avg_res);
-      *m2_out = arrow::MakeScalar(m2_res);
     }
+    *avg_out = arrow::MakeScalar(avg_res);
+    *m2_out = arrow::MakeScalar(m2_res);
     return arrow::Status::OK();
   }
 
