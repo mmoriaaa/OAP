@@ -326,8 +326,8 @@ class ColumnarAggregation(
       })
       val resultColumnVectorList = if (aggregateToResultProjector.needEvaluate) {
         val res = aggregateToResultProjector.evaluate(resultLength, resultInputCols.map(_.getValueVector()))
-        //for (i <- 0 until resultLength)
-        //  logInfo(s"aggregateToResultProjector, input is ${resultInputCols.map(v => v.getUTF8String(i))}, output is ${res.map(v => v.getUTF8String(i))}")
+        for (i <- 0 until resultLength)
+          logInfo(s"aggregateToResultProjector, input is ${resultInputCols.map(v => v.getUTF8String(i))}, output is ${res.map(v => v.getUTF8String(i))}")
         resultInputCols.foreach(_.close())
         res
       } else {

@@ -16,7 +16,7 @@ set(CMAKE_BUILD_TYPE  "DEBUG")
 
 option(TESTS "Build the tests" OFF)
 option(BENCHMARKS "Build the benchmarks" OFF)
-option(DEBUG "Enable Debug Info" OFF)
+option(DEBUG "Enable Debug Info" ON)
 
 # same as the version required in arrow/ci/conda_env_cpp.yml
 set(BOOST_MIN_VERSION "1.42.0")

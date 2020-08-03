@@ -183,6 +183,7 @@ class SplitArrayListWithActionKernel::Impl {
         RETURN_NOT_OK(action->Finish(offset, length, &arr_list));
       }
       *out = arrow::RecordBatch::Make(schema, length, arr_list);
+      arrow::PrettyPrint(*(*out).get(), 2, &std::cout);
       return arrow::Status::OK();
     };
     *out = std::make_shared<SplitArrayWithActionResultIterator>(ctx_, total_length,
@@ -919,15 +920,23 @@ class StddevSampPartialArrayKernel::Impl {
           std::dynamic_pointer_cast<DoubleScalarType>(mean_scalar_list_[i]);
       auto m2_typed_scalar =
           std::dynamic_pointer_cast<DoubleScalarType>(m2_scalar_list_[i]);
-      double pre_avg = sum_res * 1.0 / (cnt_res > 0 ? cnt_res : 1);
-      double delta = mean_typed_scalar->value - pre_avg;
-      double newN = (cnt_res + cnt_typed_scalar->value) * 1.0;
-      double deltaN = newN > 0 ? delta / newN : 0.0;
-      m2_res += m2_typed_scalar->value + delta * deltaN * cnt_res * cnt_typed_scalar->value;
-      sum_res += sum_typed_scalar->value;
-      cnt_res += cnt_typed_scalar->value  * 1.0;
+      if (cnt_typed_scalar->value > 0) {
+        double pre_avg = sum_res * 1.0 / (cnt_res > 0 ? cnt_res : 1);
+        double delta = mean_typed_scalar->value - pre_avg;
+        double newN = (cnt_res + cnt_typed_scalar->value) * 1.0;
+        double deltaN = newN > 0 ? delta / newN : 0.0;
+        m2_res += m2_typed_scalar->value + 
+          delta * deltaN * cnt_res * cnt_typed_scalar->value;
+        sum_res += sum_typed_scalar->value;
+        cnt_res += cnt_typed_scalar->value  * 1.0;
+      }
     }
-    double avg = sum_res * 1.0 / cnt_res;
+    double avg = 0;
+    if (cnt_res > 0) {
+      avg = sum_res * 1.0 / cnt_res;
+    } else {
+      m2_res = 0;
+    } 
     std::shared_ptr<arrow::Array> cnt_out;
     std::shared_ptr<arrow::Scalar> cnt_scalar_out;
     cnt_scalar_out = arrow::MakeScalar(cnt_res);
@@ -1023,11 +1032,13 @@ class StddevSampFinalArrayKernel::Impl {
         avg_res = avg_val;
         m2_res = m2_val;
       } else {
-        double delta = avg_val - avg_res;
-        double deltaN = (cnt_res + cnt_val) > 0 ? delta / (cnt_res + cnt_val) : 0;
-        avg_res += deltaN * cnt_val;
-        m2_res += (m2_val + delta * deltaN * cnt_res * cnt_val);
-        cnt_res += cnt_val;
+        if (cnt_val > 0) {
+          double delta = avg_val - avg_res;
+          double deltaN = (cnt_res + cnt_val) > 0 ? delta / (cnt_res + cnt_val) : 0;
+          avg_res += deltaN * cnt_val;
+          m2_res += (m2_val + delta * deltaN * cnt_res * cnt_val);
+          cnt_res += cnt_val;
+        }
       }
     }
     *avg_out = arrow::MakeScalar(avg_res);
@@ -1082,19 +1093,28 @@ class StddevSampFinalArrayKernel::Impl {
         avg_res = avg_typed_scalar->value;
         m2_res = m2_typed_scalar->value;
       } else {
-        double delta = avg_typed_scalar->value - avg_res;
-        double newN = cnt_res + cnt_typed_scalar->value;
-        double deltaN = newN > 0 ? delta / newN : 0;
-        avg_res += deltaN * cnt_typed_scalar->value;
-        m2_res += (m2_typed_scalar->value + delta * deltaN * cnt_res * cnt_typed_scalar->value);
-        cnt_res += cnt_typed_scalar->value;
+        if (cnt_typed_scalar->value > 0) {
+          double delta = avg_typed_scalar->value - avg_res;
+          double newN = cnt_res + cnt_typed_scalar->value;
+          double deltaN = newN > 0 ? delta / newN : 0;
+          avg_res += deltaN * cnt_typed_scalar->value;
+          m2_res += (m2_typed_scalar->value + delta * deltaN * cnt_res * cnt_typed_scalar->value);
+          cnt_res += cnt_typed_scalar->value;
+        }
       }
     }
 
-    double stddev_samp = sqrt(m2_res / (cnt_res > 1 ? (cnt_res - 1) : 1));
     std::shared_ptr<arrow::Array> stddev_samp_out;
     std::shared_ptr<arrow::Scalar> stddev_samp_scalar_out;
-    stddev_samp_scalar_out = arrow::MakeScalar(stddev_samp);
+    if (cnt_res - 1 < 0.00001) {
+      double stddev_samp = std::numeric_limits<double>::quiet_NaN();
+      stddev_samp_scalar_out = arrow::MakeScalar(stddev_samp);
+    } else if (cnt_res < 0.00001) {
+      stddev_samp_scalar_out = MakeNullScalar(arrow::float64());
+    } else {
+      double stddev_samp = sqrt(m2_res / (cnt_res > 1 ? (cnt_res - 1) : 1));
+      stddev_samp_scalar_out = arrow::MakeScalar(stddev_samp);
+    }
     RETURN_NOT_OK(arrow::MakeArrayFromScalar(*stddev_samp_scalar_out.get(), 1, &stddev_samp_out));
     out->push_back(stddev_samp_out);
 

@@ -25,6 +25,7 @@
 #include <arrow/type_traits.h>
 #include <arrow/util/checked_cast.h>
 #include <math.h>
+#include <limits>
 
 #include <iostream>
 #include <memory>
@@ -1161,9 +1162,11 @@ class StddevSampPartialAction : public ActionBase {
         RETURN_NOT_OK(avg_builder->Append(cache_sum_[offset + i]));
         RETURN_NOT_OK(m2_builder->Append(cache_m2_[offset + i]));
       } else {
-        RETURN_NOT_OK(count_builder->AppendNull());
-        RETURN_NOT_OK(avg_builder->AppendNull());
-        RETURN_NOT_OK(m2_builder->AppendNull());
+        // append zero to count_builder if all values in this group are null
+        double zero = 0;
+        RETURN_NOT_OK(count_builder->Append(zero));
+        RETURN_NOT_OK(avg_builder->Append(zero));
+        RETURN_NOT_OK(m2_builder->Append(zero));
       }
     }
     
@@ -1234,7 +1237,7 @@ class StddevSampFinalAction : public ActionBase {
     if (in_m2_->null_count()) {
       *on_valid = [this](int dest_group_id) {
         const bool is_null = in_m2_->IsNull(row_id);
-        if (!is_null) {
+        if (!is_null && data_count_[row_id] > 0) {
           cache_validity_[dest_group_id] = true;
           double pre_avg = cache_avg_[dest_group_id];
           double delta = data_avg_[row_id] - pre_avg;
@@ -1250,15 +1253,17 @@ class StddevSampFinalAction : public ActionBase {
       };
     } else {
       *on_valid = [this](int dest_group_id) {
-        cache_validity_[dest_group_id] = true;
-        double pre_avg = cache_avg_[dest_group_id];
-        double delta = data_avg_[row_id] - pre_avg;
-        double n1 = cache_count_[dest_group_id];
-        double n2 = data_count_[row_id];
-        double deltaN = (n1 + n2) > 0 ? delta / (n1 + n2) : 0;
-        cache_m2_[dest_group_id] += (data_m2_[row_id] + delta * deltaN * n1 * n2);
-        cache_avg_[dest_group_id] += deltaN * n2;
-        cache_count_[dest_group_id] += n2;
+        if (data_count_[row_id] > 0) {
+           cache_validity_[dest_group_id] = true;
+           double pre_avg = cache_avg_[dest_group_id];
+           double delta = data_avg_[row_id] - pre_avg;
+           double n1 = cache_count_[dest_group_id];
+           double n2 = data_count_[row_id];
+           double deltaN = (n1 + n2) > 0 ? delta / (n1 + n2) : 0;
+           cache_m2_[dest_group_id] += (data_m2_[row_id] + delta * deltaN * n1 * n2);
+           cache_avg_[dest_group_id] += deltaN * n2;
+           cache_count_[dest_group_id] += n2;
+        }
         row_id++;
         return arrow::Status::OK();
       };
@@ -1273,7 +1278,8 @@ class StddevSampFinalAction : public ActionBase {
   arrow::Status Finish(ArrayList* out) override {
     std::shared_ptr<arrow::Array> out_arr;
     for (int i = 0; i < cache_count_.size(); i++) {
-      cache_m2_[i] = sqrt(cache_m2_[i] / (cache_count_[i] - 1));
+      cache_m2_[i] = sqrt(cache_m2_[i] / (cache_count_[i] > 1 ? 
+        (cache_count_[i] - 1) : 1));
     }
     auto builder = new arrow::DoubleBuilder(ctx_->memory_pool());
     RETURN_NOT_OK(builder->AppendValues(cache_m2_, cache_validity_));
@@ -1287,13 +1293,19 @@ class StddevSampFinalAction : public ActionBase {
 
   arrow::Status Finish(uint64_t offset, uint64_t length, ArrayList* out) override {
     for (int i = 0; i < length; i++) {
-      cache_m2_[i + offset] = sqrt(cache_m2_[i + offset] / (cache_count_[i + offset] - 1));
+      cache_m2_[i + offset] = sqrt(cache_m2_[i + offset] / 
+        (cache_count_[i + offset] > 1 ? (cache_count_[i + offset] - 1) : 1));
     }
     auto builder = new arrow::DoubleBuilder(ctx_->memory_pool());
     for (uint64_t i = 0; i < length; i++) {
+      // if (cache_count_[offset + i] - 1 < 0.00001) {
+      //   // append NaN if only one non-null value exists
+      //   RETURN_NOT_OK(builder->Append(std::numeric_limits<double>::quiet_NaN()));
+      // } else 
       if (cache_validity_[offset + i]) {
         RETURN_NOT_OK(builder->Append(cache_m2_[offset + i]));
       } else {
+        // append null if all values are null 
         RETURN_NOT_OK(builder->AppendNull());
       }
     }
