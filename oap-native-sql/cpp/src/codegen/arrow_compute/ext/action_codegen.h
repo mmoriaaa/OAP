@@ -952,8 +952,8 @@ class StddevSampPartialActionCodeGen : public ActionCodeGen {
         GetTypedVectorDefineString(data_type, sig_name) + ";\n");
     on_exists_codes_list_.push_back("");
     on_new_codes_list_.push_back("");
-    on_finish_codes_list_.push_back(sig_name + ".push_back(" + std_name + "[i] * 1.0 / (" 
-    + count_name + "[i] > 0 ? " + count_name + "[i] : 1 ));\n");
+    on_finish_codes_list_.push_back(sig_name + ".push_back(" 
+        + count_name + "[i] > 0 ?" + std_name + "[i] * 1.0 / " + count_name + "[i] : 0.0);\n");
 
     finish_variable_list_.push_back(sig_name);
     finish_var_parameter_codes_list_.push_back(
@@ -1108,8 +1108,12 @@ class StddevSampFinalActionCodeGen : public ActionCodeGen {
         GetTypedVectorDefineString(data_type, sig_name) + ";\n");
     on_exists_codes_list_.push_back("");
     on_new_codes_list_.push_back("");
-    on_finish_codes_list_.push_back(sig_name + ".push_back(sqrt(" + m2_name + "[i] / (" +
-                                    count_name + "[i] - 1)));");
+    on_finish_codes_list_.push_back("if (" + count_name + "[i] - 1 < 0.00001) {\n"
+      + sig_name + ".push_back(std::numeric_limits<double>::quiet_NaN());}\n" 
+      + "else if (" + count_name + "[i] < 0.00001) {\n"
+      + sig_name + ".push_back(std::numeric_limits<double>::quiet_NaN());}\n" 
+      + "else {\n" + sig_name + ".push_back("
+      + "sqrt(" + m2_name + "[i] / (" + count_name + "[i] - 1)));}\n");
 
     finish_variable_list_.push_back(sig_name);
     finish_var_parameter_codes_list_.push_back(

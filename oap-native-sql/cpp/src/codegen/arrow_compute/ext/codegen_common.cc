@@ -41,6 +41,7 @@ std::string BaseCodes() {
 #include "codegen/arrow_compute/ext/code_generator_base.h"
 #include "precompile/array.h"
 #include <math.h>
+#include <limits>
 using namespace sparkcolumnarplugin::codegen::arrowcompute::extra;
 )";
 }
