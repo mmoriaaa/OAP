@@ -1655,6 +1655,11 @@ public final class ArrowWritableColumnVector extends WritableColumnVector {
       BigDecimal v = new BigDecimal(value);
       writer.setSafe(rowId, v.setScale(writer.getScale()));
     }
+    @Override
+    final void setArray(int rowId, int offset, int length) {
+      ArrowBuf buffer = allocator.buffer(16 * rowId + 16L);
+      writer.setSafe(rowId, offset, buffer);
+    }
   }
 
   private static class StringWriter extends ArrowVectorWriter {
