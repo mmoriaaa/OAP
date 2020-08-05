@@ -967,6 +967,12 @@ public final class ArrowWritableColumnVector extends WritableColumnVector {
     final UTF8String getUTF8String(int rowId) {
       return UTF8String.fromString(Double.toString(accessor.get(rowId)));
     }
+
+//    @Override
+//    final Decimal getDecimal(int rowId, int precision, int scale) {
+//      if (isNullAt(rowId)) return null;
+//      return Decimal.apply(BigDecimal.valueOf(accessor.getObject(rowId)), precision, scale);
+//    }
   }
 
   private static class DecimalAccessor extends ArrowVectorAccessor {
@@ -1644,6 +1650,11 @@ public final class ArrowWritableColumnVector extends WritableColumnVector {
     final void setInt(int rowId, int value) {
       BigDecimal v = new BigDecimal(value);
       writer.setSafe(rowId, v.setScale(writer.getScale()));
+    }
+    @Override
+    final void setArray(int rowId, int offset, int length) {
+      ArrowBuf buffer = allocator.buffer(16 * rowId + 16L);
+      writer.setSafe(rowId, offset, buffer);
     }
   }
 
