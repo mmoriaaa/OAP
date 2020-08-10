@@ -244,6 +244,8 @@ object ColumnarGroupbyHashAggregation extends Logging {
       null
     }
     val originalInputFieldList = originalInputAttributes.toList.map(attr => {
+      if (attr.dataType.isInstanceOf[DecimalType])
+        throw new UnsupportedOperationException(s"Decimal type is not supported in ColumnarGroupbyHashAggregation.")
       Field
         .nullable(s"${attr.name}#${attr.exprId.id}", CodeGeneration.getResultType(attr.dataType))
     })
@@ -331,6 +333,8 @@ object ColumnarGroupbyHashAggregation extends Logging {
   def getColumnarFuncNode(expr: Expression): TreeNode = {
     var columnarExpr: Expression =
       ColumnarExpressionConverter.replaceWithColumnarExpression(expr)
+    if (columnarExpr.dataType.isInstanceOf[DecimalType])
+      throw new UnsupportedOperationException(s"Decimal type is not supported in ColumnarGroupbyHashAggregation.")
     //logInfo(s"columnarExpr is ${columnarExpr}")
     var inputList: java.util.List[Field] = Lists.newArrayList()
     val (node, _resultType) =

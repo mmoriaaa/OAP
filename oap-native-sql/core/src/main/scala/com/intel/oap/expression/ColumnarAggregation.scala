@@ -140,6 +140,8 @@ class ColumnarAggregation(
 
   // 4. create aggregate native Expression
   val aggregateFieldList = aggregateInputAttributes.map(attr => {
+    if (attr.dataType.isInstanceOf[DecimalType])
+      throw new UnsupportedOperationException(s"Decimal type is not supported in ColumnarAggregation.")
     Field.nullable(s"${attr.name}#${attr.exprId.id}", CodeGeneration.getResultType(attr.dataType))
   })
   var field_id = 0
