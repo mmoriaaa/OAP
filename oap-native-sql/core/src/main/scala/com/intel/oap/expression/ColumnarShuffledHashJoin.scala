@@ -84,6 +84,21 @@ class ColumnarShuffledHashJoin(
         build_cb = null
       }
       build_cb = buildIter.next()
+      if (build_cb == null) {
+        val res = new Iterator[ColumnarBatch] {
+          override def hasNext: Boolean = {
+            false
+          }
+
+          override def next(): ColumnarBatch = {
+            val resultColumnVectors = ArrowWritableColumnVector
+              .allocateColumns(0, resultSchema)
+              .toArray
+            new ColumnarBatch(resultColumnVectors.map(_.asInstanceOf[ColumnVector]), 0)
+          }
+        }
+        return res
+      }
       val beforeBuild = System.nanoTime()
       val build_rb = ConverterUtils.createArrowRecordBatch(build_cb)
       (0 until build_cb.numCols).toList.foreach(i =>
@@ -207,12 +222,24 @@ object ColumnarShuffledHashJoin extends Logging {
 
     logInfo(s"leftKeyExpression is ${leftKeys}, rightKeyExpression is ${rightKeys}")
     val lkeyFieldList: List[Field] = leftKeys.toList.map(expr => {
+      val nativeNode = ConverterUtils.getColumnarFuncNode(expr)
+      if (s"${nativeNode.toProtobuf}".contains("fnNode")) {
+        System.out.println(s"${nativeNode.toProtobuf}")
+        throw new UnsupportedOperationException(
+          s"expression inside key is not currently supported.")
+      }
       val attr = ConverterUtils.getAttrFromExpr(expr)
       Field
         .nullable(s"${attr.name}#${attr.exprId.id}", CodeGeneration.getResultType(attr.dataType))
     })
 
     val rkeyFieldList: List[Field] = rightKeys.toList.map(expr => {
+      val nativeNode = ConverterUtils.getColumnarFuncNode(expr)
+      if (s"${nativeNode.toProtobuf}".contains("fnNode")) {
+        System.out.println(s"${nativeNode.toProtobuf}")
+        throw new UnsupportedOperationException(
+          s"expression inside key is not currently supported.")
+      }
       val attr = ConverterUtils.getAttrFromExpr(expr)
       Field
         .nullable(s"${attr.name}#${attr.exprId.id}", CodeGeneration.getResultType(attr.dataType))
