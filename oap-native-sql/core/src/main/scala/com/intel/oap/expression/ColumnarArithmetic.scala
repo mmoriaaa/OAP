@@ -18,13 +18,12 @@
 package com.intel.oap.expression
 
 import com.google.common.collect.Lists
-
 import org.apache.arrow.gandiva.evaluator._
 import org.apache.arrow.gandiva.exceptions.GandivaException
 import org.apache.arrow.gandiva.expression._
+import org.apache.arrow.vector.types.FloatingPointPrecision
 import org.apache.arrow.vector.types.pojo.ArrowType
 import org.apache.arrow.vector.types.pojo.Field
-
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.types._
@@ -114,9 +113,13 @@ class ColumnarMultiply(left: Expression, right: Expression, original: Expression
     }
 
     //logInfo(s"(TreeBuilder.makeFunction(multiply, Lists.newArrayList($left_node, $right_node), $resultType), $resultType)")
-    (
-      TreeBuilder.makeFunction("multiply", Lists.newArrayList(left_node, right_node), resultType),
-      resultType)
+    val mulNode = TreeBuilder.makeFunction("multiply", Lists.newArrayList(left_node, right_node), resultType)
+    val dType = new ArrowType.FloatingPoint(FloatingPointPrecision.DOUBLE)
+    val scale: java.lang.Integer = 10
+    val scaleNode = TreeBuilder.makeLiteral(scale)
+    val funcNode = TreeBuilder.makeFunction("round", Lists.newArrayList(mulNode, scaleNode),
+      dType)
+    (funcNode, dType)
   }
 }
 
