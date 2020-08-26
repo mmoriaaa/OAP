@@ -27,6 +27,7 @@ import org.apache.spark.SparkConf
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.adaptive.{
+  BroadcastQueryStageExec,
   ColumnarCustomShuffleReaderExec,
   CustomShuffleReaderExec,
   ShuffleQueryStageExec
@@ -165,8 +166,24 @@ case class ColumnarPreOverrides(conf: SparkConf) extends Rule[SparkPlan] {
       newPlan
     case plan: BroadcastHashJoinExec =>
       if (columnarConf.enableColumnarBroadcastJoin) {
-        val children = plan.children.map(replaceWithColumnarPlan)
-        var newPlan: SparkPlan = plan.withNewChildren(children)
+        val o_left = if (plan.left.isInstanceOf[BroadcastQueryStageExec]) {
+          DataToArrowColumnarExec(replaceWithColumnarPlan(plan.left), plan.outputPartitioning)
+        } else {
+          replaceWithColumnarPlan(plan.left)
+        }
+        val o_right = if (plan.right.isInstanceOf[BroadcastQueryStageExec]) {
+          DataToArrowColumnarExec(replaceWithColumnarPlan(plan.right), plan.outputPartitioning)
+        } else {
+          replaceWithColumnarPlan(plan.right)
+        }
+        var newPlan: SparkPlan = new ShuffledHashJoinExec(
+          plan.leftKeys,
+          plan.rightKeys,
+          plan.joinType,
+          plan.buildSide,
+          plan.condition,
+          o_left,
+          o_right)
         val left = if (plan.left.isInstanceOf[BroadcastExchangeExec]) {
           val child = plan.left.asInstanceOf[BroadcastExchangeExec]
           new ColumnarBroadcastExchangeExec(child.mode, replaceWithColumnarPlan(child.child))
@@ -192,7 +209,7 @@ case class ColumnarPreOverrides(conf: SparkConf) extends Rule[SparkPlan] {
           newPlan = columnarPlan
         } catch {
           case e: UnsupportedOperationException =>
-            System.out.println(s"Fall back to use BroadcastHashJoinExec")
+            System.out.println(s"Fall back to use ShuffledHashJoinExec")
         }
         newPlan
       } else {
@@ -248,34 +265,35 @@ case class ColumnarPreOverrides(conf: SparkConf) extends Rule[SparkPlan] {
     if (columnarConf.enablePreferColumnar) {
       p.children.map(replaceWithColumnarPlan)
     } else {
-      p.children.map(child => child match {
-        case project: ProjectExec =>
-          val newChild = replaceWithColumnarPlan(project.child)
-          if (newChild.supportsColumnar) {
+      p.children.map(child =>
+        child match {
+          case project: ProjectExec =>
+            val newChild = replaceWithColumnarPlan(project.child)
+            if (newChild.supportsColumnar) {
+              replaceWithColumnarPlan(child)
+            } else {
+              val newProject = project.withNewChildren(List(newChild))
+              newProject
+            }
+          case filter: FilterExec =>
+            val newChild = replaceWithColumnarPlan(filter.child)
+            if (newChild.supportsColumnar) {
+              replaceWithColumnarPlan(child)
+            } else {
+              val newFilter = filter.withNewChildren(List(newChild))
+              newFilter
+            }
+          case aggr: HashAggregateExec =>
+            val newChild = replaceWithColumnarPlan(aggr.child)
+            if (newChild.supportsColumnar) {
+              replaceWithColumnarPlan(child)
+            } else {
+              val newAggr = aggr.withNewChildren(List(newChild))
+              newAggr
+            }
+          case _ =>
             replaceWithColumnarPlan(child)
-          } else {
-            val newProject = project.withNewChildren(List(newChild))
-            newProject
-          }
-        case filter: FilterExec =>
-          val newChild = replaceWithColumnarPlan(filter.child)
-          if (newChild.supportsColumnar) {
-            replaceWithColumnarPlan(child)
-          } else {
-            val newFilter = filter.withNewChildren(List(newChild))
-            newFilter
-          }
-        case aggr: HashAggregateExec =>
-          val newChild = replaceWithColumnarPlan(aggr.child)
-          if (newChild.supportsColumnar) {
-            replaceWithColumnarPlan(child)
-          } else {
-            val newAggr = aggr.withNewChildren(List(newChild))
-            newAggr
-          }
-        case _ =>
-          replaceWithColumnarPlan(child)
-      })
+        })
     }
   }
 }
