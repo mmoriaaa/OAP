@@ -119,6 +119,7 @@ class UniqueAction : public ActionBase {
     // resize result data
     if (cache_validity_.size() <= max_group_id) {
       cache_validity_.resize(max_group_id + 1, false);
+      null_flag_.resize(max_group_id + 1, false);
     }
 
     in_ = std::dynamic_pointer_cast<ArrayType>(in_list[0]);
@@ -131,6 +132,11 @@ class UniqueAction : public ActionBase {
         if (!is_null && cache_validity_[dest_group_id] == false) {
           cache_validity_[dest_group_id] = true;
           cache_.emplace(cache_.begin() + dest_group_id, in_->GetView(row_id_));
+        } else if (is_null && cache_validity_[dest_group_id] == false) {
+          cache_validity_[dest_group_id] = true;
+          null_flag_[dest_group_id] = true;
+          CType num;
+          cache_.emplace(cache_.begin() + dest_group_id, num);
         }
         row_id_++;
         return arrow::Status::OK();
@@ -159,9 +165,11 @@ class UniqueAction : public ActionBase {
     auto length = GetResultLength();
     for (uint64_t i = 0; i < length; i++) {
       if (cache_validity_[i]) {
-        builder_->Append(cache_[i]);
-      } else {
-        builder_->AppendNull();
+        if (!null_flag_[i]) {
+          builder_->Append(cache_[i]);
+        } else {
+          builder_->AppendNull();
+        }
       }
     }
     RETURN_NOT_OK(builder_->Finish(&arr_out));
@@ -177,13 +185,14 @@ class UniqueAction : public ActionBase {
     // appendValues to builder_
     builder_->Reset();
     for (uint64_t i = 0; i < length; i++) {
-      if (cache_validity_[offset + i]) {
-        builder_->Append(cache_[offset + i]);
-      } else {
-        builder_->AppendNull();
+      if (cache_validity_[i]) {
+        if (!null_flag_[offset + i]) {
+          builder_->Append(cache_[offset + i]);
+        } else {
+          builder_->AppendNull();
+        }
       }
     }
-
     RETURN_NOT_OK(builder_->Finish(&arr_out));
     out->push_back(arr_out);
     return arrow::Status::OK();
@@ -200,6 +209,7 @@ class UniqueAction : public ActionBase {
   std::unique_ptr<BuilderType> builder_;
   std::vector<CType> cache_;
   std::vector<bool> cache_validity_;
+  std::vector<bool> null_flag_;
 };
 
 //////////////// CountAction ///////////////
