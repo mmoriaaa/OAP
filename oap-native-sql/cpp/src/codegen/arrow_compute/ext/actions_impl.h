@@ -1437,8 +1437,9 @@ class StddevSampFinalAction : public ActionBase {
     auto builder = new arrow::DoubleBuilder(ctx_->memory_pool());
     for (uint64_t i = 0; i < length; i++) {
       if (cache_count_[offset + i] - 1 < 0.00001) {
-        // append NaN if only one non-null value exists
-        RETURN_NOT_OK(builder->Append(std::numeric_limits<double>::quiet_NaN()));
+        // append Infinity if only one non-null value exists
+        // RETURN_NOT_OK(builder->Append(std::numeric_limits<double>::quiet_NaN()));
+        RETURN_NOT_OK(builder->Append(std::numeric_limits<double>::infinity()));
       } else if (cache_validity_[offset + i]) {
         RETURN_NOT_OK(builder->Append(cache_m2_[offset + i]));
       } else {
