@@ -1188,7 +1188,7 @@ class EncodeArrayTypedImpl : public EncodeArrayKernel::Impl {
     } else {
       for (; cur_id < typed_array->length(); cur_id++) {
         if (typed_array->IsNull(cur_id)) {
-          RETURN_NOT_OK(builder_->AppendNull());
+          hash_table_->GetOrInsertNull(insert_on_found, insert_on_not_found);
         } else {
           hash_table_->GetOrInsert(typed_array->GetView(cur_id), insert_on_found,
                                    insert_on_not_found, &memo_index);
