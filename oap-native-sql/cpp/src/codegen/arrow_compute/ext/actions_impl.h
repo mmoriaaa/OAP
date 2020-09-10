@@ -129,14 +129,16 @@ class UniqueAction : public ActionBase {
     if (in_->null_count()) {
       *on_valid = [this](int dest_group_id) {
         const bool is_null = in_->IsNull(row_id_);
-        if (!is_null && cache_validity_[dest_group_id] == false) {
-          cache_validity_[dest_group_id] = true;
-          cache_.emplace(cache_.begin() + dest_group_id, in_->GetView(row_id_));
-        } else if (is_null && cache_validity_[dest_group_id] == false) {
-          cache_validity_[dest_group_id] = true;
-          null_flag_[dest_group_id] = true;
-          CType num;
-          cache_.emplace(cache_.begin() + dest_group_id, num);
+        if (cache_validity_[dest_group_id] == false) {
+          if (!is_null) {
+            cache_validity_[dest_group_id] = true;
+            cache_.emplace(cache_.begin() + dest_group_id, in_->GetView(row_id_));
+          } else {
+            cache_validity_[dest_group_id] = true;
+            null_flag_[dest_group_id] = true;
+            CType num;
+            cache_.emplace(cache_.begin() + dest_group_id, num);
+          }
         }
         row_id_++;
         return arrow::Status::OK();
@@ -397,9 +399,9 @@ class MinAction : public ActionBase {
 #endif
     std::unique_ptr<arrow::ArrayBuilder> array_builder;
     arrow::MakeBuilder(ctx_->memory_pool(),
-                       arrow::TypeTraits<ResDataType>::type_singleton(), &array_builder);
+                       arrow::TypeTraits<DataType>::type_singleton(), &array_builder);
     builder_.reset(
-        arrow::internal::checked_cast<ResBuilderType*>(array_builder.release()));
+        arrow::internal::checked_cast<BuilderType*>(array_builder.release()));
   }
   ~MinAction() {
 #ifdef DEBUG
@@ -486,19 +488,17 @@ class MinAction : public ActionBase {
 
  private:
   using CType = typename arrow::TypeTraits<DataType>::CType;
-  using ResDataType = typename FindAccumulatorType<DataType>::Type;
-  using ResCType = typename arrow::TypeTraits<ResDataType>::CType;
-  using ResArrayType = typename arrow::TypeTraits<ResDataType>::ArrayType;
-  using ResBuilderType = typename arrow::TypeTraits<ResDataType>::BuilderType;
+  using BuilderType = typename arrow::TypeTraits<DataType>::BuilderType;
+  
   // input
   arrow::compute::FunctionContext* ctx_;
   std::shared_ptr<arrow::Array> in_;
   CType* data_;
   int row_id;
   // result
-  std::vector<ResCType> cache_;
+  std::vector<CType> cache_;
   std::vector<bool> cache_validity_;
-  std::unique_ptr<ResBuilderType> builder_;
+  std::unique_ptr<BuilderType> builder_;
 };
 
 //////////////// MaxAction ///////////////
@@ -511,9 +511,9 @@ class MaxAction : public ActionBase {
 #endif
     std::unique_ptr<arrow::ArrayBuilder> array_builder;
     arrow::MakeBuilder(ctx_->memory_pool(),
-                       arrow::TypeTraits<ResDataType>::type_singleton(), &array_builder);
+                       arrow::TypeTraits<DataType>::type_singleton(), &array_builder);
     builder_.reset(
-        arrow::internal::checked_cast<ResBuilderType*>(array_builder.release()));
+        arrow::internal::checked_cast<BuilderType*>(array_builder.release()));
   }
   ~MaxAction() {
 #ifdef DEBUG
@@ -600,19 +600,16 @@ class MaxAction : public ActionBase {
 
  private:
   using CType = typename arrow::TypeTraits<DataType>::CType;
-  using ResDataType = typename FindAccumulatorType<DataType>::Type;
-  using ResCType = typename arrow::TypeTraits<ResDataType>::CType;
-  using ResArrayType = typename arrow::TypeTraits<ResDataType>::ArrayType;
-  using ResBuilderType = typename arrow::TypeTraits<ResDataType>::BuilderType;
+  using BuilderType = typename arrow::TypeTraits<DataType>::BuilderType;
   // input
   arrow::compute::FunctionContext* ctx_;
   std::shared_ptr<arrow::Array> in_;
   CType* data_;
   int row_id;
   // result
-  std::vector<ResCType> cache_;
+  std::vector<CType> cache_;
   std::vector<bool> cache_validity_;
-  std::unique_ptr<ResBuilderType> builder_;
+  std::unique_ptr<BuilderType> builder_;
 };
 
 //////////////// SumAction ///////////////
