@@ -384,8 +384,10 @@ class ColumnarAggregation(
     val aggregateCols : List[ArrowWritableColumnVector]= if (beforeAggregateProjector != null && beforeAggregateProjector.needEvaluate) {
       val res = beforeAggregateProjector.evaluate(numRows, aggregateProjectCols.map(_.getValueVector()))
       aggregateProjectCols.foreach(_.close())
+      aggregateFullCols.foreach(_.close())
       res
     } else {
+      aggregateProjectCols.foreach(_.close())
       aggregateFullCols
     }
 
