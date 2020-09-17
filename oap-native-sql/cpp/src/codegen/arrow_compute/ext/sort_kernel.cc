@@ -35,12 +35,86 @@
 #include "codegen/arrow_compute/ext/codegen_common.h"
 #include "codegen/arrow_compute/ext/kernels_ext.h"
 #include "third_party/ska_sort.hpp"
+#include "precompile/array.h"
+#include "precompile/builder.h"
+#include "precompile/type.h"
+#include <arrow/buffer.h>
+#include "codegen/arrow_compute/ext/code_generator_base.h"
+#include <algorithm>
 
 namespace sparkcolumnarplugin {
 namespace codegen {
 namespace arrowcompute {
 namespace extra {
 using ArrayList = std::vector<std::shared_ptr<arrow::Array>>;
+using namespace sparkcolumnarplugin::precompile;
+
+class AppenderBase {
+  public:
+  virtual ~AppenderBase() {}
+
+  virtual arrow::Status AddArray(const std::shared_ptr<arrow::Array>& arr)  {
+    return arrow::Status::NotImplemented("AppenderBase AddArray is abstract.");
+  }
+
+  virtual arrow::Status Append(uint16_t& array_id, uint16_t& item_id) {
+    return arrow::Status::NotImplemented("AppenderBase Append is abstract.");
+  }
+
+  virtual arrow::Status Finish(std::shared_ptr<arrow::Array>* out_) {
+    return arrow::Status::NotImplemented("AppenderBase Finish is abstract.");
+  }
+
+  virtual arrow::Status Reset() {
+    return arrow::Status::NotImplemented("AppenderBase Reset is abstract.");
+  }
+};
+
+template <class DataType>
+class ArrayAppender : public AppenderBase {
+  public:
+  ArrayAppender(arrow::compute::FunctionContext* ctx) : ctx_(ctx) {
+    std::unique_ptr<arrow::ArrayBuilder> array_builder;
+    arrow::MakeBuilder(
+        ctx_->memory_pool(), arrow::TypeTraits<DataType>::type_singleton(), &array_builder);
+    builder_.reset(
+        arrow::internal::checked_cast<BuilderType_*>(array_builder.release()));
+  }
+  ~ArrayAppender() {}
+
+  arrow::Status AddArray(const std::shared_ptr<arrow::Array>& arr)  {
+    auto typed_arr_ = std::dynamic_pointer_cast<ArrayType_>(arr);
+    cached_arr_.emplace_back(typed_arr_);
+    return arrow::Status::OK();
+  }
+
+  arrow::Status Append(uint16_t& array_id, uint16_t& item_id) {
+    if (!cached_arr_[array_id]->IsNull(item_id)) {
+      auto val = cached_arr_[array_id]->GetView(item_id);
+      builder_->Append(cached_arr_[array_id]->GetView(item_id));
+    } else {
+      builder_->AppendNull();
+    }
+    return arrow::Status::OK();
+  }
+
+  arrow::Status Finish(std::shared_ptr<arrow::Array>* out_) {
+    builder_->Finish(out_);
+    return arrow::Status::OK();
+  }
+
+  arrow::Status Reset() {
+    builder_->Reset();
+    return arrow::Status::OK();
+  }
+                                                           
+  private:
+  using BuilderType_ = typename arrow::TypeTraits<DataType>::BuilderType;
+  using ArrayType_ = typename arrow::TypeTraits<DataType>::ArrayType;
+  std::unique_ptr<BuilderType_> builder_;
+  std::vector<std::shared_ptr<ArrayType_>> cached_arr_;
+  arrow::compute::FunctionContext* ctx_;
+};
 
 ///////////////  SortArraysToIndices  ////////////////
 class SortArraysToIndicesKernel::Impl {
@@ -666,6 +740,202 @@ class SortInplaceKernel : public SortArraysToIndicesKernel::Impl {
   };
 };
 
+///////////////  SortArraysOneKey  ////////////////
+template <typename DATATYPE, typename CTYPE>
+class SortOnekeyKernel : public SortArraysToIndicesKernel::Impl {
+ public:
+  SortOnekeyKernel(arrow::compute::FunctionContext* ctx, 
+      std::vector<std::shared_ptr<arrow::Field>> key_field_list,
+       std::shared_ptr<arrow::Schema> result_schema,
+      bool nulls_first, bool asc)
+      : ctx_(ctx), nulls_first_(nulls_first), asc_(asc), result_schema_(result_schema) {
+      auto indices = result_schema->GetAllFieldIndices(key_field_list[0]->name());
+      key_id_ = indices[0];
+      col_num_ = result_schema->num_fields();
+  }
+
+  arrow::Status Evaluate(const ArrayList& in) override {
+    num_batches_++;
+    cached_key_.push_back(std::dynamic_pointer_cast<ArrayType_key>(in[key_id_]));
+    items_total_ += in[key_id_]->length();
+    nulls_total_ += in[key_id_]->null_count();
+    length_list_.push_back(in[key_id_]->length());
+    if (cached_.size() <= col_num_) {
+      cached_.resize(col_num_ + 1);
+    }
+    for (int i = 0; i < col_num_; i++) {
+      cached_[i].push_back(in[i]);
+    }
+    return arrow::Status::OK();
+  }
+
+  arrow::Status FinishInternal(std::shared_ptr<FixedSizeBinaryArray>* out) {
+    auto comp = [this](ArrayItemIndex x, ArrayItemIndex y) {
+      return cached_key_[x.array_id]->GetView(x.id) < cached_key_[y.array_id]->GetView(y.id);};
+    // initiate buffer for all arrays
+    std::shared_ptr<arrow::Buffer> indices_buf;
+    int64_t buf_size = items_total_ * sizeof(ArrayItemIndex);
+    RETURN_NOT_OK(arrow::AllocateBuffer(ctx_->memory_pool(), buf_size, &indices_buf));
+    // start to partition not_null with null
+    ArrayItemIndex* indices_begin = 
+      reinterpret_cast<ArrayItemIndex*>(indices_buf->mutable_data());
+    ArrayItemIndex* indices_end = indices_begin + items_total_;
+    int64_t indices_i = 0;
+    int64_t indices_null = 0;
+    // we should support nulls first and nulls last here
+    // we should also support desc and asc here
+    for (int array_id = 0; array_id < num_batches_; array_id++) {
+      for (int64_t i = 0; i < length_list_[array_id]; i++) {
+        if (!cached_key_[array_id]->IsNull(i)) {
+          (indices_begin + nulls_total_ + indices_i)->array_id = array_id;
+          (indices_begin + nulls_total_ + indices_i)->id = i;
+          indices_i++;
+        } else {
+          (indices_begin + indices_null)->array_id = array_id;
+          (indices_begin + indices_null)->id = i;
+          indices_null++;
+        }
+      }
+    }
+    ska_sort(indices_begin + nulls_total_, indices_begin + items_total_, 
+            [this](auto& x) -> decltype(auto){ return cached_key_[x.array_id]->GetView(x.id); });
+    std::shared_ptr<arrow::FixedSizeBinaryType> out_type;
+    RETURN_NOT_OK(MakeFixedSizeBinaryType(sizeof(ArrayItemIndex) / sizeof(int32_t), &out_type));
+    RETURN_NOT_OK(MakeFixedSizeBinaryArray(out_type, items_total_, indices_buf, out));
+    return arrow::Status::OK();
+  }
+
+  arrow::Status MakeResultIterator(
+      std::shared_ptr<arrow::Schema> schema,
+      std::shared_ptr<ResultIterator<arrow::RecordBatch>>* out) override {
+    std::shared_ptr<FixedSizeBinaryArray> indices_out;
+    RETURN_NOT_OK(FinishInternal(&indices_out));
+    *out = std::make_shared<SorterResultIterator>(ctx_, schema, result_schema_, indices_out, cached_);
+    return arrow::Status::OK();
+  }
+
+ private:
+  using ArrayType_key = typename arrow::TypeTraits<DATATYPE>::ArrayType;
+  //using ArrayType_key = arrow::UInt32Array;
+  std::vector<std::shared_ptr<ArrayType_key>> cached_key_;
+  std::vector<arrow::ArrayVector> cached_;
+  arrow::compute::FunctionContext* ctx_;
+  std::shared_ptr<arrow::Schema> result_schema_;
+  bool nulls_first_;
+  bool asc_;
+  std::vector<int64_t> length_list_;
+  uint64_t num_batches_ = 0;
+  uint64_t items_total_ = 0;
+  uint64_t nulls_total_ = 0;
+  uint64_t col_num_;
+  int key_id_;
+  
+#define PROCESS_SUPPORTED_TYPES(PROCESS) \
+  PROCESS(arrow::UInt8Type)              \
+  PROCESS(arrow::Int8Type)               \
+  PROCESS(arrow::UInt16Type)             \
+  PROCESS(arrow::Int16Type)              \
+  PROCESS(arrow::UInt32Type)             \
+  PROCESS(arrow::Int32Type)              \
+  PROCESS(arrow::UInt64Type)             \
+  PROCESS(arrow::Int64Type)              \
+  PROCESS(arrow::FloatType)              \
+  PROCESS(arrow::DoubleType)
+  class SorterResultIterator : public ResultIterator<arrow::RecordBatch> {
+   public:
+    SorterResultIterator(arrow::compute::FunctionContext* ctx,
+                         std::shared_ptr<arrow::Schema> schema,
+                         std::shared_ptr<arrow::Schema> result_schema,
+                         std::shared_ptr<FixedSizeBinaryArray> indices_in,
+                         std::vector<arrow::ArrayVector>& cached)
+        : ctx_(ctx),
+          schema_(schema),
+          result_schema_(result_schema),
+          indices_in_cache_(indices_in),
+          total_length_(indices_in->length()),
+          cached_in_(cached) {
+      col_num_ = result_schema->num_fields();
+      indices_begin_ = (ArrayItemIndex*)indices_in->value_data();
+      for (uint64_t i = 0; i < col_num_; i++) {
+        auto field = result_schema->field(i);
+        switch (field->type()->id()) {
+#define PROCESS(InType)                                                       \
+  case InType::type_id: {                                                     \ 
+    auto app_ptr = std::make_shared<ArrayAppender<InType>>(ctx);              \
+    auto appender = std::dynamic_pointer_cast<AppenderBase>(app_ptr);         \
+    appender_list_.push_back(appender);                                       \
+  } break;
+    PROCESS_SUPPORTED_TYPES(PROCESS)
+  default: {
+          std::cout << "SortOnekeyKernel type not supported, type is "
+                    << field->type() << std::endl;
+        } break;
+#undef PROCESS
+        }
+      }
+
+    for (int i = 0; i < col_num_; i++) {
+      arrow::ArrayVector array_vector = cached_in_[i];
+      int array_num = array_vector.size();
+      for (int array_id = 0; array_id < array_num; array_id++) {
+        auto arr = array_vector[array_id];
+        appender_list_[i]->AddArray(arr);
+      }
+    }
+      batch_size_ = GetBatchSize();
+    }
+
+    std::string ToString() override { return "SortArraysToIndicesResultIterator"; }
+
+    bool HasNext() override {
+      if (offset_ >= total_length_) {
+        return false;
+      }
+      return true;
+    }
+
+    arrow::Status Next(std::shared_ptr<arrow::RecordBatch>* out) {
+      auto length = (total_length_ - offset_) > batch_size_ ? batch_size_
+                                                            : (total_length_ - offset_);
+      uint64_t count = 0;
+      for (int i = 0; i < col_num_; i++) {
+        while (count < length) {
+          auto item = indices_begin_ + offset_ + count++;
+          RETURN_NOT_OK(appender_list_[i]->Append(item->array_id, item->id));
+        }
+        count = 0;
+      }
+      offset_ += length;
+      ArrayList arrays;
+      for (int i = 0; i < col_num_; i++) {
+        std::shared_ptr<arrow::Array> out_;
+        RETURN_NOT_OK(appender_list_[i]->Finish(&out_));
+        arrays.push_back(out_);
+        appender_list_[i]->Reset();
+      }
+
+      *out = arrow::RecordBatch::Make(result_schema_, length, arrays);
+      return arrow::Status::OK();
+    }
+
+   private:
+    uint64_t offset_ = 0;
+    const uint64_t total_length_;
+    std::shared_ptr<arrow::Schema> schema_;
+    std::shared_ptr<arrow::Schema> result_schema_;
+    arrow::compute::FunctionContext* ctx_;
+    uint64_t batch_size_;
+    uint64_t col_num_;
+    ArrayItemIndex* indices_begin_;
+    std::vector<arrow::ArrayVector> cached_in_;
+    std::vector<std::shared_ptr<arrow::DataType>> type_list_;
+    std::vector<std::shared_ptr<AppenderBase>> appender_list_;
+    std::vector<std::shared_ptr<arrow::Array>> array_list_;
+    std::shared_ptr<FixedSizeBinaryArray> indices_in_cache_;
+  };
+#undef PROCESS_SUPPORTED_TYPES
+};
+
 arrow::Status SortArraysToIndicesKernel::Make(
     arrow::compute::FunctionContext* ctx,
     std::vector<std::shared_ptr<arrow::Field>> key_field_list,
@@ -712,7 +982,29 @@ SortArraysToIndicesKernel::SortArraysToIndicesKernel(
         } break;
       }
     }
-
+  } else if (key_field_list.size() == 1 && result_schema->num_fields() > 1) {
+#ifdef DEBUG
+    std::cout << "UseSortOneKey" << std::endl;
+#endif
+    if (key_field_list[0]->type()->id() == arrow::Type::STRING) {
+      impl_.reset(
+        new SortOnekeyKernel<arrow::StringType, std::string>(ctx, key_field_list, 
+        result_schema, nulls_first, asc));
+    } else {
+      switch (key_field_list[0]->type()->id()) {
+#define PROCESS(InType)                                                       \
+  case InType::type_id: {                                                     \
+    using CType = typename arrow::TypeTraits<InType>::CType;                  \
+    impl_.reset(new SortOnekeyKernel<InType, CType>(ctx, key_field_list, result_schema, nulls_first, asc));  \
+  } break;
+        PROCESS_SUPPORTED_TYPES(PROCESS)
+#undef PROCESS
+        default: {
+          std::cout << "SortOnekeyKernel type not supported, type is "
+                    << key_field_list[0]->type() << std::endl;
+        } break;
+      }
+    }
   } else {
     impl_.reset(new Impl(ctx, key_field_list, result_schema, nulls_first, asc));
     auto status = impl_->LoadJITFunction(key_field_list, result_schema);
