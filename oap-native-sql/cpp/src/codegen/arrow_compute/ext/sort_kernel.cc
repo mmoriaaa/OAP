@@ -883,22 +883,27 @@ class SortOnekeyKernel : public SortArraysToIndicesKernel::Impl {
       indices_begin_ = (ArrayItemIndex*)indices_in->value_data();
       for (uint64_t i = 0; i < col_num_; i++) {
         auto field = result_schema->field(i);
-        switch (field->type()->id()) {
+        if (field->type()->id() == arrow::Type::STRING) {
+          auto app_ptr = std::make_shared<ArrayAppender<arrow::StringType>>(ctx);
+          auto appender = std::dynamic_pointer_cast<AppenderBase>(app_ptr);
+          appender_list_.push_back(appender);
+        } else {
+          switch (field->type()->id()) {
 #define PROCESS(InType)                                                       \
-  case InType::type_id: {                                                     \ 
+  case InType::type_id: {                                                     \
     auto app_ptr = std::make_shared<ArrayAppender<InType>>(ctx);              \
     auto appender = std::dynamic_pointer_cast<AppenderBase>(app_ptr);         \
     appender_list_.push_back(appender);                                       \
   } break;
-    PROCESS_SUPPORTED_TYPES(PROCESS)
+      PROCESS_SUPPORTED_TYPES(PROCESS)
   default: {
           std::cout << "SortOnekeyKernel type not supported, type is "
                     << field->type() << std::endl;
         } break;
 #undef PROCESS
+          }
         }
       }
-
     for (int i = 0; i < col_num_; i++) {
       arrow::ArrayVector array_vector = cached_in_[i];
       int array_num = array_vector.size();
