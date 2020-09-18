@@ -769,9 +769,7 @@ class SortOnekeyKernel : public SortArraysToIndicesKernel::Impl {
     return arrow::Status::OK();
   }
 
-  arrow::Status FinishInternal(std::shared_ptr<FixedSizeBinaryArray>* out) {
-    auto comp = [this](ArrayItemIndex x, ArrayItemIndex y) {
-      return cached_key_[x.array_id]->GetView(x.id) < cached_key_[y.array_id]->GetView(y.id);};
+  arrow::Status FinishInternal(std::shared_ptr<FixedSizeBinaryArray>* out) {    
     // initiate buffer for all arrays
     std::shared_ptr<arrow::Buffer> indices_buf;
     int64_t buf_size = items_total_ * sizeof(ArrayItemIndex);
@@ -786,19 +784,46 @@ class SortOnekeyKernel : public SortArraysToIndicesKernel::Impl {
     // we should also support desc and asc here
     for (int array_id = 0; array_id < num_batches_; array_id++) {
       for (int64_t i = 0; i < length_list_[array_id]; i++) {
-        if (!cached_key_[array_id]->IsNull(i)) {
-          (indices_begin + nulls_total_ + indices_i)->array_id = array_id;
-          (indices_begin + nulls_total_ + indices_i)->id = i;
-          indices_i++;
+        if (nulls_first_) {
+          if (!cached_key_[array_id]->IsNull(i)) {
+            (indices_begin + nulls_total_ + indices_i)->array_id = array_id;
+            (indices_begin + nulls_total_ + indices_i)->id = i;
+            indices_i++;
+          } else {
+            (indices_begin + indices_null)->array_id = array_id;
+            (indices_begin + indices_null)->id = i;
+            indices_null++;
+          }
         } else {
-          (indices_begin + indices_null)->array_id = array_id;
-          (indices_begin + indices_null)->id = i;
-          indices_null++;
+          if (!cached_key_[array_id]->IsNull(i)) {
+            (indices_begin + indices_i)->array_id = array_id;
+            (indices_begin + indices_i)->id = i;
+            indices_i++;
+          } else {
+            (indices_end - nulls_total_ + indices_null)->array_id = array_id;
+            (indices_end - nulls_total_ + indices_null)->id = i;
+            indices_null++;
+          }
         }
       }
     }
-    ska_sort(indices_begin + nulls_total_, indices_begin + items_total_, 
+    if (asc_) {
+      if (nulls_first_) {
+        ska_sort(indices_begin + nulls_total_, indices_begin + items_total_, 
             [this](auto& x) -> decltype(auto){ return cached_key_[x.array_id]->GetView(x.id); });
+      } else {
+        ska_sort(indices_begin, indices_begin + items_total_ - nulls_total_, 
+            [this](auto& x) -> decltype(auto){ return cached_key_[x.array_id]->GetView(x.id); });
+      }
+    } else {
+      auto comp = [this](ArrayItemIndex x, ArrayItemIndex y) {
+        return cached_key_[x.array_id]->GetView(x.id) > cached_key_[y.array_id]->GetView(y.id);};
+      if (nulls_first_) {
+        std::sort(indices_begin + nulls_total_, indices_begin + items_total_, comp);
+      } else {
+        std::sort(indices_begin, indices_begin + items_total_ - nulls_total_, comp);
+      }
+    }
     std::shared_ptr<arrow::FixedSizeBinaryType> out_type;
     RETURN_NOT_OK(MakeFixedSizeBinaryType(sizeof(ArrayItemIndex) / sizeof(int32_t), &out_type));
     RETURN_NOT_OK(MakeFixedSizeBinaryArray(out_type, items_total_, indices_buf, out));
