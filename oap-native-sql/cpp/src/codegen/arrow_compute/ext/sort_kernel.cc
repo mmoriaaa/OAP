@@ -36,11 +36,8 @@
 #include "codegen/arrow_compute/ext/kernels_ext.h"
 #include "third_party/ska_sort.hpp"
 #include "precompile/array.h"
-#include "precompile/builder.h"
 #include "precompile/type.h"
-#include <arrow/buffer.h>
-#include "codegen/arrow_compute/ext/code_generator_base.h"
-#include <algorithm>
+#include "array_appender.h"
 
 namespace sparkcolumnarplugin {
 namespace codegen {
@@ -48,73 +45,6 @@ namespace arrowcompute {
 namespace extra {
 using ArrayList = std::vector<std::shared_ptr<arrow::Array>>;
 using namespace sparkcolumnarplugin::precompile;
-
-class AppenderBase {
-  public:
-  virtual ~AppenderBase() {}
-
-  virtual arrow::Status AddArray(const std::shared_ptr<arrow::Array>& arr)  {
-    return arrow::Status::NotImplemented("AppenderBase AddArray is abstract.");
-  }
-
-  virtual arrow::Status Append(uint16_t& array_id, uint16_t& item_id) {
-    return arrow::Status::NotImplemented("AppenderBase Append is abstract.");
-  }
-
-  virtual arrow::Status Finish(std::shared_ptr<arrow::Array>* out_) {
-    return arrow::Status::NotImplemented("AppenderBase Finish is abstract.");
-  }
-
-  virtual arrow::Status Reset() {
-    return arrow::Status::NotImplemented("AppenderBase Reset is abstract.");
-  }
-};
-
-template <class DataType>
-class ArrayAppender : public AppenderBase {
-  public:
-  ArrayAppender(arrow::compute::FunctionContext* ctx) : ctx_(ctx) {
-    std::unique_ptr<arrow::ArrayBuilder> array_builder;
-    arrow::MakeBuilder(
-        ctx_->memory_pool(), arrow::TypeTraits<DataType>::type_singleton(), &array_builder);
-    builder_.reset(
-        arrow::internal::checked_cast<BuilderType_*>(array_builder.release()));
-  }
-  ~ArrayAppender() {}
-
-  arrow::Status AddArray(const std::shared_ptr<arrow::Array>& arr)  {
-    auto typed_arr_ = std::dynamic_pointer_cast<ArrayType_>(arr);
-    cached_arr_.emplace_back(typed_arr_);
-    return arrow::Status::OK();
-  }
-
-  arrow::Status Append(uint16_t& array_id, uint16_t& item_id) {
-    if (!cached_arr_[array_id]->IsNull(item_id)) {
-      auto val = cached_arr_[array_id]->GetView(item_id);
-      builder_->Append(cached_arr_[array_id]->GetView(item_id));
-    } else {
-      builder_->AppendNull();
-    }
-    return arrow::Status::OK();
-  }
-
-  arrow::Status Finish(std::shared_ptr<arrow::Array>* out_) {
-    builder_->Finish(out_);
-    return arrow::Status::OK();
-  }
-
-  arrow::Status Reset() {
-    builder_->Reset();
-    return arrow::Status::OK();
-  }
-                                                           
-  private:
-  using BuilderType_ = typename arrow::TypeTraits<DataType>::BuilderType;
-  using ArrayType_ = typename arrow::TypeTraits<DataType>::ArrayType;
-  std::unique_ptr<BuilderType_> builder_;
-  std::vector<std::shared_ptr<ArrayType_>> cached_arr_;
-  arrow::compute::FunctionContext* ctx_;
-};
 
 ///////////////  SortArraysToIndices  ////////////////
 class SortArraysToIndicesKernel::Impl {
@@ -835,13 +765,12 @@ class SortOnekeyKernel : public SortArraysToIndicesKernel::Impl {
       std::shared_ptr<ResultIterator<arrow::RecordBatch>>* out) override {
     std::shared_ptr<FixedSizeBinaryArray> indices_out;
     RETURN_NOT_OK(FinishInternal(&indices_out));
-    *out = std::make_shared<SorterResultIterator>(ctx_, schema, result_schema_, indices_out, cached_);
+    *out = std::make_shared<SorterResultIterator>(ctx_, schema, indices_out, cached_);
     return arrow::Status::OK();
   }
 
  private:
   using ArrayType_key = typename arrow::TypeTraits<DATATYPE>::ArrayType;
-  //using ArrayType_key = arrow::UInt32Array;
   std::vector<std::shared_ptr<ArrayType_key>> cached_key_;
   std::vector<arrow::ArrayVector> cached_;
   arrow::compute::FunctionContext* ctx_;
@@ -865,24 +794,24 @@ class SortOnekeyKernel : public SortArraysToIndicesKernel::Impl {
   PROCESS(arrow::UInt64Type)             \
   PROCESS(arrow::Int64Type)              \
   PROCESS(arrow::FloatType)              \
-  PROCESS(arrow::DoubleType)
+  PROCESS(arrow::DoubleType)             \
+  PROCESS(arrow::Date32Type)             \
+  PROCESS(arrow::Date64Type)             
   class SorterResultIterator : public ResultIterator<arrow::RecordBatch> {
    public:
     SorterResultIterator(arrow::compute::FunctionContext* ctx,
                          std::shared_ptr<arrow::Schema> schema,
-                         std::shared_ptr<arrow::Schema> result_schema,
                          std::shared_ptr<FixedSizeBinaryArray> indices_in,
                          std::vector<arrow::ArrayVector>& cached)
         : ctx_(ctx),
           schema_(schema),
-          result_schema_(result_schema),
           indices_in_cache_(indices_in),
           total_length_(indices_in->length()),
           cached_in_(cached) {
-      col_num_ = result_schema->num_fields();
+      col_num_ = schema->num_fields();
       indices_begin_ = (ArrayItemIndex*)indices_in->value_data();
       for (uint64_t i = 0; i < col_num_; i++) {
-        auto field = result_schema->field(i);
+        auto field = schema->field(i);
         if (field->type()->id() == arrow::Type::STRING) {
           auto app_ptr = std::make_shared<ArrayAppender<arrow::StringType>>(ctx);
           auto appender = std::dynamic_pointer_cast<AppenderBase>(app_ptr);
@@ -938,13 +867,13 @@ class SortOnekeyKernel : public SortArraysToIndicesKernel::Impl {
       offset_ += length;
       ArrayList arrays;
       for (int i = 0; i < col_num_; i++) {
-        std::shared_ptr<arrow::Array> out_;
-        RETURN_NOT_OK(appender_list_[i]->Finish(&out_));
-        arrays.push_back(out_);
+        std::shared_ptr<arrow::Array> out_array;
+        RETURN_NOT_OK(appender_list_[i]->Finish(&out_array));
+        arrays.push_back(out_array);
         appender_list_[i]->Reset();
       }
 
-      *out = arrow::RecordBatch::Make(result_schema_, length, arrays);
+      *out = arrow::RecordBatch::Make(schema_, length, arrays);
       return arrow::Status::OK();
     }
 
@@ -952,7 +881,6 @@ class SortOnekeyKernel : public SortArraysToIndicesKernel::Impl {
     uint64_t offset_ = 0;
     const uint64_t total_length_;
     std::shared_ptr<arrow::Schema> schema_;
-    std::shared_ptr<arrow::Schema> result_schema_;
     arrow::compute::FunctionContext* ctx_;
     uint64_t batch_size_;
     uint64_t col_num_;

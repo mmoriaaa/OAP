@@ -48,7 +48,7 @@ TEST(TestArrowComputeSort, SortTestNullsFirstAsc) {
   ///////////////////// Calculation //////////////////
   std::shared_ptr<CodeGenerator> sort_expr;
   ASSERT_NOT_OK(
-      CreateCodeGenerator(sch, {sortArrays_expr}, {f_indices}, &sort_expr, true));
+      CreateCodeGenerator(sch, {sortArrays_expr}, ret_types, &sort_expr, true));
 
   std::shared_ptr<arrow::RecordBatch> input_batch;
   std::vector<std::shared_ptr<arrow::RecordBatch>> input_batch_list;
@@ -124,7 +124,7 @@ TEST(TestArrowComputeSort, SortTestNullsLastAsc) {
   ///////////////////// Calculation //////////////////
   std::shared_ptr<CodeGenerator> sort_expr;
   ASSERT_NOT_OK(
-      CreateCodeGenerator(sch, {sortArrays_expr}, {f_indices}, &sort_expr, true));
+      CreateCodeGenerator(sch, {sortArrays_expr}, ret_types, &sort_expr, true));
 
   std::shared_ptr<arrow::RecordBatch> input_batch;
   std::vector<std::shared_ptr<arrow::RecordBatch>> input_batch_list;
@@ -198,7 +198,7 @@ TEST(TestArrowComputeSort, SortTestNullsFirstDesc) {
   ///////////////////// Calculation //////////////////
   std::shared_ptr<CodeGenerator> sort_expr;
   ASSERT_NOT_OK(
-      CreateCodeGenerator(sch, {sortArrays_expr}, {f_indices}, &sort_expr, true));
+      CreateCodeGenerator(sch, {sortArrays_expr}, ret_types, &sort_expr, true));
 
   std::shared_ptr<arrow::RecordBatch> input_batch;
   std::vector<std::shared_ptr<arrow::RecordBatch>> input_batch_list;
@@ -272,7 +272,7 @@ TEST(TestArrowComputeSort, SortTestNullsLastDesc) {
   ///////////////////// Calculation //////////////////
   std::shared_ptr<CodeGenerator> sort_expr;
   ASSERT_NOT_OK(
-      CreateCodeGenerator(sch, {sortArrays_expr}, {f_indices}, &sort_expr, true));
+      CreateCodeGenerator(sch, {sortArrays_expr}, ret_types, &sort_expr, true));
 
   std::shared_ptr<arrow::RecordBatch> input_batch;
   std::vector<std::shared_ptr<arrow::RecordBatch>> input_batch_list;
@@ -347,7 +347,7 @@ TEST(TestArrowComputeSort, SortTestNullsFirstAscMultipleKeys) {
   ///////////////////// Calculation //////////////////
   std::shared_ptr<CodeGenerator> sort_expr;
   ASSERT_NOT_OK(
-      CreateCodeGenerator(sch, {sortArrays_expr}, {f_indices}, &sort_expr, true));
+      CreateCodeGenerator(sch, {sortArrays_expr}, ret_types, &sort_expr, true));
 
   std::shared_ptr<arrow::RecordBatch> input_batch;
   std::vector<std::shared_ptr<arrow::RecordBatch>> input_batch_list;
