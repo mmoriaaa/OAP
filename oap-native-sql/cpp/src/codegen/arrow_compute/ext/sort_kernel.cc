@@ -630,18 +630,20 @@ class SortInplaceKernel : public SortArraysToIndicesKernel::Impl {
     arrow::Status Next(std::shared_ptr<arrow::RecordBatch>* out) {
       auto length = (total_length_ - offset_) > batch_size_ ? batch_size_
                                                             : (total_length_ - offset_);
-      uint64_t count = 0;
+      uint64_t valid_count = 0;
+      uint64_t total_count = 0;
       if (offset_ >= nulls_total_) {
-        while (count < length) {
-          RETURN_NOT_OK(builder_0_->Append(result_arr_->GetView(offset_ + count++)));
+        while (total_count < length) {
+          RETURN_NOT_OK(builder_0_->Append(result_arr_->GetView(offset_ + total_count++)));
         }
       } else {
-        while (count < length) {
-          if ((offset_ + count) < nulls_total_) {
+        while (total_count < length) {
+          if ((offset_ + total_count) < nulls_total_) {
             RETURN_NOT_OK(builder_0_->AppendNull());
           } else {
-            RETURN_NOT_OK(builder_0_->Append(result_arr_->GetView(offset_ + count++)));
+            RETURN_NOT_OK(builder_0_->Append(result_arr_->GetView(offset_ + valid_count++)));
           }
+          total_count++;
         }
       }
       offset_ += length;

@@ -409,5 +409,72 @@ TEST(TestArrowComputeSort, SortTestNullsFirstAscMultipleKeys) {
   }
 }
 
+TEST(TestArrowComputeSort, SortTestInPlace) {
+  ////////////////////// prepare expr_vector ///////////////////////
+  auto f0 = field("f0", uint32());
+  auto arg_0 = TreeExprBuilder::MakeField(f0);
+  
+  auto f_res = field("res", uint32());
+  auto indices_type = std::make_shared<FixedSizeBinaryType>(16);
+  auto f_indices = field("indices", indices_type);
+
+  auto n_sort_to_indices = TreeExprBuilder::MakeFunction(
+      "sortArraysToIndicesNullsFirstAsc", {arg_0}, uint32());
+  auto sortArrays_expr = TreeExprBuilder::MakeExpression(n_sort_to_indices, f_res);
+
+  auto sch = arrow::schema({f0});
+  std::vector<std::shared_ptr<Field>> ret_types = {f0};
+  ///////////////////// Calculation //////////////////
+  std::shared_ptr<CodeGenerator> sort_expr;
+  ASSERT_NOT_OK(
+      CreateCodeGenerator(sch, {sortArrays_expr}, ret_types, &sort_expr, true));
+
+  std::shared_ptr<arrow::RecordBatch> input_batch;
+  std::vector<std::shared_ptr<arrow::RecordBatch>> input_batch_list;
+  std::vector<std::shared_ptr<arrow::RecordBatch>> dummy_result_batches;
+  std::shared_ptr<ResultIterator<arrow::RecordBatch>> sort_result_iterator;
+
+  std::vector<std::string> input_data_string = {"[10, 12, 4, 50, 52, 32, 11]"};
+  MakeInputBatch(input_data_string, sch, &input_batch);
+  input_batch_list.push_back(input_batch);
+
+  std::vector<std::string> input_data_string_2 = {"[1, 14, 43, 42, 6, null, 2]"};
+  MakeInputBatch(input_data_string_2, sch, &input_batch);
+  input_batch_list.push_back(input_batch);
+
+  std::vector<std::string> input_data_string_3 = {"[3, 64, 15, 7, 9, 19, 33]"};
+  MakeInputBatch(input_data_string_3, sch, &input_batch);
+  input_batch_list.push_back(input_batch);
+
+  std::vector<std::string> input_data_string_4 = {"[23, 17, 41, 18, 20, 35, 30]"};
+  MakeInputBatch(input_data_string_4, sch, &input_batch);
+  input_batch_list.push_back(input_batch);
+
+  std::vector<std::string> input_data_string_5 = {"[37, null, 22, 13, 8, 59, 21]"};
+  MakeInputBatch(input_data_string_5, sch, &input_batch);
+  input_batch_list.push_back(input_batch);
+
+  ////////////////////////////////// calculation ///////////////////////////////////
+  std::shared_ptr<arrow::RecordBatch> expected_result;
+  std::vector<std::string> expected_result_string = {
+      "[null, null, 1, 2, 3, 4, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 17, 18, 19, 20, 21, "
+      "22, 23, 30, "
+      "32, 33, 35, 37, 41, 42, 43, 50, 52, 59, 64]"};
+  MakeInputBatch(expected_result_string, sch, &expected_result);
+
+  for (auto batch : input_batch_list) {
+    ASSERT_NOT_OK(sort_expr->evaluate(batch, &dummy_result_batches));
+  }
+  ASSERT_NOT_OK(sort_expr->finish(&sort_result_iterator));
+
+  std::shared_ptr<arrow::RecordBatch> dummy_result_batch;
+  std::shared_ptr<arrow::RecordBatch> result_batch;
+
+  if (sort_result_iterator->HasNext()) {
+    ASSERT_NOT_OK(sort_result_iterator->Next(&result_batch));
+    ASSERT_NOT_OK(Equals(*expected_result.get(), *result_batch.get()));
+  }
+}
+
 }  // namespace codegen
 }  // namespace sparkcolumnarplugin
