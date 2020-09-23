@@ -920,29 +920,28 @@ SortArraysToIndicesKernel::SortArraysToIndicesKernel(
     arrow::compute::FunctionContext* ctx,
     std::vector<std::shared_ptr<arrow::Field>> key_field_list,
     std::shared_ptr<arrow::Schema> result_schema, bool nulls_first, bool asc) {
-  if (key_field_list.size() == 1 && result_schema->num_fields() == 1) {
+  if (key_field_list.size() == 1 && result_schema->num_fields() == 1 
+      && key_field_list[0]->type()->id() != arrow::Type::STRING) {
+    // Will use SortInplace when sorting for one non-string col
 #ifdef DEBUG
     std::cout << "UseSortInplace" << std::endl;
 #endif
-    if (key_field_list[0]->type()->id() == arrow::Type::STRING) {
-      impl_.reset(
-          new SortInplaceKernel<arrow::StringType, std::string>(ctx, nulls_first, asc));
-    } else {
-      switch (key_field_list[0]->type()->id()) {
+    switch (key_field_list[0]->type()->id()) {
 #define PROCESS(InType)                                                       \
   case InType::type_id: {                                                     \
     using CType = typename arrow::TypeTraits<InType>::CType;                  \
     impl_.reset(new SortInplaceKernel<InType, CType>(ctx, nulls_first, asc)); \
   } break;
-        PROCESS_SUPPORTED_TYPES(PROCESS)
+      PROCESS_SUPPORTED_TYPES(PROCESS)
 #undef PROCESS
-        default: {
-          std::cout << "SortInplaceKernel type not supported, type is "
-                    << key_field_list[0]->type() << std::endl;
-        } break;
-      }
+      default: {
+        std::cout << "SortInplaceKernel type not supported, type is "
+                  << key_field_list[0]->type() << std::endl;
+      } break;
     }
-  } else if (key_field_list.size() == 1 && result_schema->num_fields() > 1) {
+  } else if (key_field_list.size() == 1 && result_schema->num_fields() >= 1) {
+    // Will use SortOnekey when: 
+    // 1. sorting for one col inside several cols 2. sorting for one string col
 #ifdef DEBUG
     std::cout << "UseSortOneKey" << std::endl;
 #endif
@@ -966,6 +965,7 @@ SortArraysToIndicesKernel::SortArraysToIndicesKernel(
       }
     }
   } else {
+    // Will use Sort Codegen when sorting for several cols
     impl_.reset(new Impl(ctx, key_field_list, result_schema, nulls_first, asc));
     auto status = impl_->LoadJITFunction(key_field_list, result_schema);
     if (!status.ok()) {
