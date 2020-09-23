@@ -572,6 +572,7 @@ class SortInplaceKernel : public SortArraysToIndicesKernel::Impl {
     auto valid_indices_end = indices_end;
     if (nulls_total_ > 0) {
       // we use arrow sort for this scenario
+      // the indices_out of arrow sort is nulls_last
       std::shared_ptr<arrow::Array> indices_out;
       RETURN_NOT_OK(
           arrow::compute::SortToIndices(ctx_, *concatenated_array_.get(), &indices_out));
@@ -630,19 +631,36 @@ class SortInplaceKernel : public SortArraysToIndicesKernel::Impl {
     arrow::Status Next(std::shared_ptr<arrow::RecordBatch>* out) {
       auto length = (total_length_ - offset_) > batch_size_ ? batch_size_
                                                             : (total_length_ - offset_);
+      /* Here we take value from the sorted result_arr_ and append to builder.
+      valid_count is used to count the valid value, for accessing the valid value
+      in result_arr_.
+      total_count is used to count both valid and null value, for determing if all values
+      are appended to builder in while loop.
+      */
       uint64_t valid_count = 0;
       uint64_t total_count = 0;
       if (offset_ >= nulls_total_) {
+        // If no null value
         while (total_count < length) {
-          RETURN_NOT_OK(builder_0_->Append(result_arr_->GetView(offset_ + total_count++)));
+          RETURN_NOT_OK(builder_0_->Append(result_arr_->GetView(offset_ + total_count)));
+          total_count++;
         }
       } else {
+        // If has null value
         while (total_count < length) {
           if ((offset_ + total_count) < nulls_total_) {
+            // Append nulls first
+            // TODO: support nulls_last
             RETURN_NOT_OK(builder_0_->AppendNull());
           } else {
-            RETURN_NOT_OK(builder_0_->Append(result_arr_->GetView(offset_ + valid_count++)));
+            // After appending all null value, append valid value
+            // Because result_arr_ from arrow sort is nulls_last, valid_count is used to
+            // access data from the beginning of result_arr_.
+            RETURN_NOT_OK(builder_0_->Append(result_arr_->GetView(offset_ + valid_count)));
+            // Add valid_count after appending one valid value
+            valid_count++;
           }
+          // Add total_count for both valid and null value
           total_count++;
         }
       }
@@ -827,11 +845,11 @@ class SortOnekeyKernel : public SortArraysToIndicesKernel::Impl {
     appender_list_.push_back(appender);                                       \
   } break;
       PROCESS_SUPPORTED_TYPES(PROCESS)
+#undef PROCESS
   default: {
           std::cout << "SortOnekeyKernel type not supported, type is "
                     << field->type() << std::endl;
-        } break;
-#undef PROCESS
+            } break;
           }
         }
       }
