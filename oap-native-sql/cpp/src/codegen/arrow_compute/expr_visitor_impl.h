@@ -539,11 +539,21 @@ class EncodeVisitorImpl : public ExprVisitorImpl {
 ////////////////////////// SortArraysToIndicesVisitorImpl ///////////////////////
 class SortArraysToIndicesVisitorImpl : public ExprVisitorImpl {
  public:
-  SortArraysToIndicesVisitorImpl(ExprVisitor* p, bool nulls_first, bool asc)
-      : ExprVisitorImpl(p), nulls_first_(nulls_first), asc_(asc) {}
+  SortArraysToIndicesVisitorImpl(ExprVisitor* p,
+                                 std::shared_ptr<arrow::Schema> result_schema,
+                                 std::vector<std::shared_ptr<arrow::Field>> key_field_list, 
+                                 std::vector<bool> sort_directions, 
+                                 std::vector<bool> nulls_order)
+      : ExprVisitorImpl(p), result_schema_(result_schema), 
+        key_field_list_(key_field_list), sort_directions_(sort_directions), 
+        nulls_order_(nulls_order) {}
   static arrow::Status Make(ExprVisitor* p, std::shared_ptr<ExprVisitorImpl>* out,
-                            bool nulls_first, bool asc) {
-    auto impl = std::make_shared<SortArraysToIndicesVisitorImpl>(p, nulls_first, asc);
+                            std::shared_ptr<arrow::Schema> result_schema,
+                            std::vector<std::shared_ptr<arrow::Field>> key_field_list,
+                            std::vector<bool> sort_directions, 
+                            std::vector<bool> nulls_order) {
+    auto impl = std::make_shared<SortArraysToIndicesVisitorImpl>(
+      p, result_schema, key_field_list, sort_directions, nulls_order);
     *out = impl;
     return arrow::Status::OK();
   }
@@ -551,16 +561,8 @@ class SortArraysToIndicesVisitorImpl : public ExprVisitorImpl {
     if (initialized_) {
       return arrow::Status::OK();
     }
-    std::vector<std::shared_ptr<arrow::Field>> field_list;
-    for (auto col_name : p_->param_field_names_) {
-      int col_id;
-      std::shared_ptr<arrow::Field> field;
-      RETURN_NOT_OK(GetColumnIdAndFieldByName(p_->schema_, col_name, &col_id, &field));
-      p_->result_fields_.push_back(field);
-      field_list.push_back(field);
-    }
     RETURN_NOT_OK(extra::SortArraysToIndicesKernel::Make(
-        &p_->ctx_, field_list, p_->schema_, &kernel_, nulls_first_, asc_));
+        &p_->ctx_, result_schema_, key_field_list_, sort_directions_, nulls_order_, &kernel_));
     p_->signature_ = kernel_->GetSignature();
     initialized_ = true;
     finish_return_type_ = ArrowComputeResultType::BatchIterator;
@@ -602,8 +604,10 @@ class SortArraysToIndicesVisitorImpl : public ExprVisitorImpl {
   }
 
  private:
-  bool nulls_first_;
-  bool asc_;
+  std::shared_ptr<arrow::Schema> result_schema_;
+  std::vector<std::shared_ptr<arrow::Field>> key_field_list_;
+  std::vector<bool> sort_directions_;
+  std::vector<bool> nulls_order_;
 };
 
 ////////////////////////// ConditionedProbeArraysVisitorImpl ///////////////////////

@@ -305,13 +305,16 @@ class StddevSampFinalArrayKernel : public KernalBase {
 class SortArraysToIndicesKernel : public KernalBase {
  public:
   static arrow::Status Make(arrow::compute::FunctionContext* ctx,
-                            std::vector<std::shared_ptr<arrow::Field>> key_field_list,
                             std::shared_ptr<arrow::Schema> result_schema,
-                            std::shared_ptr<KernalBase>* out, bool nulls_first, bool asc);
+                            std::vector<std::shared_ptr<arrow::Field>> key_field_list,
+                            std::vector<bool> sort_directions, 
+                            std::vector<bool> nulls_order, 
+                            std::shared_ptr<KernalBase>* out);
   SortArraysToIndicesKernel(arrow::compute::FunctionContext* ctx,
-                            std::vector<std::shared_ptr<arrow::Field>> key_field_list,
                             std::shared_ptr<arrow::Schema> result_schema,
-                            bool nulls_first, bool asc);
+                            std::vector<std::shared_ptr<arrow::Field>> key_field_list,
+                            std::vector<bool> sort_directions, 
+                            std::vector<bool> nulls_order);
   arrow::Status Evaluate(const ArrayList& in) override;
   arrow::Status MakeResultIterator(
       std::shared_ptr<arrow::Schema> schema,

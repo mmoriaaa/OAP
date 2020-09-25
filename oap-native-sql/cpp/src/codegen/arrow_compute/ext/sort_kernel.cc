@@ -57,9 +57,14 @@ class SortArraysToIndicesKernel::Impl {
  public:
   Impl() {}
   Impl(arrow::compute::FunctionContext* ctx,
+       std::shared_ptr<arrow::Schema> result_schema,
        std::vector<std::shared_ptr<arrow::Field>> key_field_list,
-       std::shared_ptr<arrow::Schema> result_schema, bool nulls_first, bool asc)
-      : ctx_(ctx), nulls_first_(nulls_first), asc_(asc), key_field_list_(key_field_list) {
+       std::vector<bool> sort_directions, 
+       std::vector<bool> nulls_order)
+      : ctx_(ctx), result_schema_(result_schema), 
+        key_field_list_(key_field_list), sort_directions_(sort_directions), 
+        nulls_order_(nulls_order), asc_(sort_directions[0]), 
+        nulls_first_(nulls_order[0]) {
     for (auto field : key_field_list) {
       auto indices = result_schema->GetAllFieldIndices(field->name());
       if (indices.size() != 1) {
@@ -77,8 +82,11 @@ class SortArraysToIndicesKernel::Impl {
       std::shared_ptr<arrow::Schema> result_schema) {
     // generate ddl signature
     std::stringstream func_args_ss;
-    func_args_ss << "[Sorter]" << (nulls_first_ ? "nulls_first" : "nulls_last") << "|"
-                 << (asc_ ? "asc" : "desc");
+    int col_num = sort_directions_.size();
+    for (int i = 0; i < col_num; i++) {
+        func_args_ss << "[Sorter]" << (nulls_order_[i] ? "nulls_first" : "nulls_last") << "|"
+                     << (sort_directions_[i] ? "asc" : "desc");
+    }
     for (auto i : key_index_list_) {
       auto field = result_schema->field(i);
       func_args_ss << "[sort_key_" << i << "]" << field->type()->ToString();
@@ -131,10 +139,16 @@ class SortArraysToIndicesKernel::Impl {
   std::shared_ptr<CodeGenBase> sorter;
   arrow::compute::FunctionContext* ctx_;
   std::string signature_;
+  std::vector<int> key_index_list_;
+  std::shared_ptr<arrow::Schema> result_schema_;
+  std::vector<std::shared_ptr<arrow::Field>> key_field_list_;
+  // true for asc, false for desc
+  std::vector<bool> sort_directions_;
+  // true for nulls_first, false for nulls_last
+  std::vector<bool> nulls_order_;
+  // keep the direction and nulls order for the first key
   bool nulls_first_;
   bool asc_;
-  std::vector<int> key_index_list_;
-  std::vector<std::shared_ptr<arrow::Field>> key_field_list_;
   class TypedSorterCodeGenImpl {
    public:
     TypedSorterCodeGenImpl(std::string indice, std::shared_ptr<arrow::DataType> data_type,
@@ -190,7 +204,8 @@ class SortArraysToIndicesKernel::Impl {
       indice++;
     }
     std::string cached_insert_str = GetCachedInsert(shuffle_typed_codegen_list.size());
-    std::string comp_func_str = GetCompFunction(key_index_list_, key_field_list_);
+    std::string comp_func_str = GetCompFunction(key_index_list_, key_field_list_, 
+                                                sort_directions_, nulls_order_);
 
     std::string pre_sort_valid_str = GetPreSortValid();
 
@@ -372,19 +387,46 @@ extern "C" void MakeCodeGen(arrow::compute::FunctionContext* ctx,
     return ss.str();
   }
   std::string GetCompFunction(std::vector<int> sort_key_index_list, 
-                              std::vector<std::shared_ptr<arrow::Field>> key_field_list) {
+                              std::vector<std::shared_ptr<arrow::Field>> key_field_list,
+                              std::vector<bool> sort_directions, std::vector<bool> nulls_order) {
     std::stringstream ss;
     ss << "auto comp = [this](ArrayItemIndex x, ArrayItemIndex y) {"
-       << GetCompFunction_(0, sort_key_index_list, key_field_list) << "};";
+       << GetCompFunction_(0, sort_key_index_list, key_field_list, sort_directions, nulls_order) << "};";
     return ss.str();
   }
   std::string GetCompFunction_(int cur_key_index, std::vector<int> sort_key_index_list, 
-                               std::vector<std::shared_ptr<arrow::Field>> key_field_list) {
+                               std::vector<std::shared_ptr<arrow::Field>> key_field_list,
+                               std::vector<bool> sort_directions, std::vector<bool> nulls_order) {
     std::string comp_str;
     auto cur_key_id = sort_key_index_list[cur_key_index];
     auto field = key_field_list[cur_key_index];
-    if (asc_) {
-      std::stringstream ss;
+    bool asc = sort_directions[cur_key_index];
+    bool nulls_first = nulls_order[cur_key_index];
+    // Multiple keys sorting w/ nulls first/last is supported.
+    std::stringstream ss;
+    // For cols except the first one, we need to determine the position of nulls.
+    // If value accessed from x is null, return true to make nulls first.
+    if (cur_key_index != 0) {
+      ss << "if (cached_" << cur_key_id << "_[x.array_id]->IsNull(x.id)) {\n";
+      if (nulls_first) {
+        ss << "return true;\n}";
+      } else {
+        ss << "return false;\n}";
+      }
+      // If value accessed from y is null, return false to make nulls first.
+      ss << " else if (cached_" << cur_key_id << "_[y.array_id]->IsNull(y.id)) {\n";
+      if (nulls_first) {
+        ss << "return false;\n}";
+      } else {
+        ss << "return true;\n}";
+      }
+      // If values accessed from x and y are both not null
+      ss << " else {\n";
+    }
+
+    // Multiple keys sorting w/ different ordering is supported.
+    // For string type of data, GetString should be used instead of GetView.
+    if (asc) {
       if (field->type()->id() == arrow::Type::STRING) {
         ss << "return cached_" << cur_key_id << "_[x.array_id]->GetString(x.id) < cached_"
            << cur_key_id << "_[y.array_id]->GetString(y.id);\n";
@@ -392,9 +434,7 @@ extern "C" void MakeCodeGen(arrow::compute::FunctionContext* ctx,
         ss << "return cached_" << cur_key_id << "_[x.array_id]->GetView(x.id) < cached_"
            << cur_key_id << "_[y.array_id]->GetView(y.id);\n";
       }
-      comp_str = ss.str();
     } else {
-      std::stringstream ss;
       if (field->type()->id() == arrow::Type::STRING) {
         ss << "return cached_" << cur_key_id << "_[x.array_id]->GetString(x.id) > cached_"
            << cur_key_id << "_[y.array_id]->GetString(y.id);\n";
@@ -402,10 +442,14 @@ extern "C" void MakeCodeGen(arrow::compute::FunctionContext* ctx,
         ss << "return cached_" << cur_key_id << "_[x.array_id]->GetView(x.id) > cached_"
            << cur_key_id << "_[y.array_id]->GetView(y.id);\n";
       }
-      comp_str = ss.str();
     }
+    if (cur_key_index != 0) {
+      ss << "}\n";
+    }
+    comp_str = ss.str();
+    // clear the contents of stringstream
+    ss.str(std::string());
     if ((cur_key_index + 1) < sort_key_index_list.size()) {
-      std::stringstream ss;
       if (field->type()->id() == arrow::Type::STRING) {
         ss << "if (cached_" << cur_key_id << "_[x.array_id]->GetString(x.id) == cached_"
            << cur_key_id << "_[y.array_id]->GetString(y.id)) {";
@@ -413,7 +457,8 @@ extern "C" void MakeCodeGen(arrow::compute::FunctionContext* ctx,
         ss << "if (cached_" << cur_key_id << "_[x.array_id]->GetView(x.id) == cached_"
            << cur_key_id << "_[y.array_id]->GetView(y.id)) {";
       }
-      ss << GetCompFunction_(cur_key_index + 1, sort_key_index_list, key_field_list) 
+      ss << GetCompFunction_(cur_key_index + 1, sort_key_index_list, key_field_list, 
+                             sort_directions, nulls_order) 
          << "} else { " << comp_str << "}";
       return ss.str();
     } else {
@@ -575,8 +620,9 @@ extern "C" void MakeCodeGen(arrow::compute::FunctionContext* ctx,
 template <typename DATATYPE, typename CTYPE>
 class SortInplaceKernel : public SortArraysToIndicesKernel::Impl {
  public:
-  SortInplaceKernel(arrow::compute::FunctionContext* ctx, bool nulls_first, bool asc)
-      : ctx_(ctx), nulls_first_(nulls_first), asc_(asc) {}
+  SortInplaceKernel(arrow::compute::FunctionContext* ctx, std::vector<bool> sort_directions, 
+                    std::vector<bool> nulls_order)
+      : ctx_(ctx), nulls_first_(nulls_order[0]), asc_(sort_directions[0]) {}
 
   arrow::Status Evaluate(const ArrayList& in) override {
     num_batches_++;
@@ -725,12 +771,22 @@ template <typename DATATYPE, typename CTYPE>
 class SortOnekeyKernel<DATATYPE, CTYPE, enable_if_number<CTYPE>> 
   : public SortArraysToIndicesKernel::Impl {
  public:
-  SortOnekeyKernel(arrow::compute::FunctionContext* ctx, 
-      std::vector<std::shared_ptr<arrow::Field>> key_field_list,
-       std::shared_ptr<arrow::Schema> result_schema,
-      bool nulls_first, bool asc)
-      : ctx_(ctx), nulls_first_(nulls_first), asc_(asc), result_schema_(result_schema) {
+  SortOnekeyKernel(arrow::compute::FunctionContext* ctx,
+                   std::shared_ptr<arrow::Schema> result_schema,
+                   std::vector<std::shared_ptr<arrow::Field>> key_field_list,
+                   std::vector<bool> sort_directions, std::vector<bool> nulls_order)
+      : ctx_(ctx), nulls_first_(nulls_order[0]), asc_(sort_directions[0]), 
+        result_schema_(result_schema) {
+      #ifdef DEBUG
+          std::cout << "UseSortOneKeyForArithmetic" << std::endl;
+      #endif
       auto indices = result_schema->GetAllFieldIndices(key_field_list[0]->name());
+      if (indices.size() < 1) {
+        std::cout << "[ERROR] SortOnekeyKernel for arithmetic can't find key "
+                  << key_field_list[0]->ToString() << " from " 
+                  << result_schema->ToString() << std::endl;
+        throw;
+      }
       key_id_ = indices[0];
       col_num_ = result_schema->num_fields();
   }
@@ -833,7 +889,7 @@ class SortOnekeyKernel<DATATYPE, CTYPE, enable_if_number<CTYPE>>
   uint64_t num_batches_ = 0;
   uint64_t items_total_ = 0;
   uint64_t nulls_total_ = 0;
-  uint64_t col_num_;
+  int col_num_;
   int key_id_;
   
 #define PROCESS_SUPPORTED_TYPES(PROCESS) \
@@ -862,7 +918,7 @@ class SortOnekeyKernel<DATATYPE, CTYPE, enable_if_number<CTYPE>>
           cached_in_(cached) {
       col_num_ = schema->num_fields();
       indices_begin_ = (ArrayItemIndex*)indices_in->value_data();
-      for (uint64_t i = 0; i < col_num_; i++) {
+      for (int i = 0; i < col_num_; i++) {
         auto field = schema->field(i);
         if (field->type()->id() == arrow::Type::STRING) {
           auto app_ptr = std::make_shared<ArrayAppender<arrow::StringType>>(ctx);
@@ -936,7 +992,7 @@ class SortOnekeyKernel<DATATYPE, CTYPE, enable_if_number<CTYPE>>
     std::shared_ptr<arrow::Schema> schema_;
     arrow::compute::FunctionContext* ctx_;
     uint64_t batch_size_;
-    uint64_t col_num_;
+    int col_num_;
     ArrayItemIndex* indices_begin_;
     std::vector<arrow::ArrayVector> cached_in_;
     std::vector<std::shared_ptr<arrow::DataType>> type_list_;
@@ -954,11 +1010,21 @@ class SortOnekeyKernel<DATATYPE, CTYPE, enable_if_string<CTYPE>>
   : public SortArraysToIndicesKernel::Impl {
  public:
   SortOnekeyKernel(arrow::compute::FunctionContext* ctx, 
+      std::shared_ptr<arrow::Schema> result_schema,
       std::vector<std::shared_ptr<arrow::Field>> key_field_list,
-       std::shared_ptr<arrow::Schema> result_schema,
-      bool nulls_first, bool asc)
-      : ctx_(ctx), nulls_first_(nulls_first), asc_(asc), result_schema_(result_schema) {
+      std::vector<bool> sort_directions, std::vector<bool> nulls_order)
+      : ctx_(ctx), nulls_first_(nulls_order[0]), asc_(sort_directions[0]), 
+        result_schema_(result_schema) {
+      #ifdef DEBUG
+          std::cout << "UseSortOneKeyForString" << std::endl;
+      #endif
       auto indices = result_schema->GetAllFieldIndices(key_field_list[0]->name());
+      if (indices.size() < 1) {
+        std::cout << "[ERROR] SortOnekeyKernel for string can't find key "
+                  << key_field_list[0]->ToString() << " from " 
+                  << result_schema->ToString() << std::endl;
+        throw;
+      }
       key_id_ = indices[0];
       col_num_ = result_schema->num_fields();
   }
@@ -1060,7 +1126,7 @@ class SortOnekeyKernel<DATATYPE, CTYPE, enable_if_string<CTYPE>>
   uint64_t num_batches_ = 0;
   uint64_t items_total_ = 0;
   uint64_t nulls_total_ = 0;
-  uint64_t col_num_;
+  int col_num_;
   int key_id_;
      
 #define PROCESS_SUPPORTED_TYPES(PROCESS) \
@@ -1089,7 +1155,7 @@ class SortOnekeyKernel<DATATYPE, CTYPE, enable_if_string<CTYPE>>
           cached_in_(cached) {
       col_num_ = schema->num_fields();
       indices_begin_ = (ArrayItemIndex*)indices_in->value_data();
-      for (uint64_t i = 0; i < col_num_; i++) {
+      for (int i = 0; i < col_num_; i++) {
         auto field = schema->field(i);
         if (field->type()->id() == arrow::Type::STRING) {
           auto app_ptr = std::make_shared<ArrayAppender<arrow::StringType>>(ctx);
@@ -1162,7 +1228,7 @@ class SortOnekeyKernel<DATATYPE, CTYPE, enable_if_string<CTYPE>>
     std::shared_ptr<arrow::Schema> schema_;
     arrow::compute::FunctionContext* ctx_;
     uint64_t batch_size_;
-    uint64_t col_num_;
+    int col_num_;
     ArrayItemIndex* indices_begin_;
     std::vector<arrow::ArrayVector> cached_in_;
     std::vector<std::shared_ptr<arrow::DataType>> type_list_;
@@ -1175,11 +1241,12 @@ class SortOnekeyKernel<DATATYPE, CTYPE, enable_if_string<CTYPE>>
 
 arrow::Status SortArraysToIndicesKernel::Make(
     arrow::compute::FunctionContext* ctx,
+    std::shared_ptr<arrow::Schema> result_schema,
     std::vector<std::shared_ptr<arrow::Field>> key_field_list,
-    std::shared_ptr<arrow::Schema> result_schema, std::shared_ptr<KernalBase>* out,
-    bool nulls_first, bool asc) {
-  *out = std::make_shared<SortArraysToIndicesKernel>(ctx, key_field_list, result_schema,
-                                                     nulls_first, asc);
+    std::vector<bool> sort_directions, std::vector<bool> nulls_order,
+    std::shared_ptr<KernalBase>* out) {
+  *out = std::make_shared<SortArraysToIndicesKernel>(
+    ctx, result_schema, key_field_list, sort_directions, nulls_order);
   return arrow::Status::OK();
 }
 #define PROCESS_SUPPORTED_TYPES(PROCESS) \
@@ -1195,8 +1262,9 @@ arrow::Status SortArraysToIndicesKernel::Make(
   PROCESS(arrow::DoubleType)
 SortArraysToIndicesKernel::SortArraysToIndicesKernel(
     arrow::compute::FunctionContext* ctx,
+    std::shared_ptr<arrow::Schema> result_schema,
     std::vector<std::shared_ptr<arrow::Field>> key_field_list,
-    std::shared_ptr<arrow::Schema> result_schema, bool nulls_first, bool asc) {
+    std::vector<bool> sort_directions, std::vector<bool> nulls_order) {
   if (key_field_list.size() == 1 && result_schema->num_fields() == 1 
       && key_field_list[0]->type()->id() != arrow::Type::STRING) {
     // Will use SortInplace when sorting for one non-string col
@@ -1207,7 +1275,7 @@ SortArraysToIndicesKernel::SortArraysToIndicesKernel(
 #define PROCESS(InType)                                                       \
   case InType::type_id: {                                                     \
     using CType = typename arrow::TypeTraits<InType>::CType;                  \
-    impl_.reset(new SortInplaceKernel<InType, CType>(ctx, nulls_first, asc)); \
+    impl_.reset(new SortInplaceKernel<InType, CType>(ctx, sort_directions, nulls_order)); \
   } break;
       PROCESS_SUPPORTED_TYPES(PROCESS)
 #undef PROCESS
@@ -1223,14 +1291,14 @@ SortArraysToIndicesKernel::SortArraysToIndicesKernel(
     std::cout << "UseSortOneKey" << std::endl;
 #endif
     if (key_field_list[0]->type()->id() == arrow::Type::STRING) {
-      impl_.reset(new SortOnekeyKernel<arrow::StringType, std::string>(ctx, 
-        key_field_list, result_schema, nulls_first, asc));
+      impl_.reset(new SortOnekeyKernel<arrow::StringType, std::string>(
+        ctx, result_schema, key_field_list, sort_directions, nulls_order));
     } else {
       switch (key_field_list[0]->type()->id()) {
 #define PROCESS(InType)                                                       \
   case InType::type_id: {                                                     \
     using CType = typename arrow::TypeTraits<InType>::CType;                  \
-    impl_.reset(new SortOnekeyKernel<InType, CType>(ctx, key_field_list, result_schema, nulls_first, asc)); \
+    impl_.reset(new SortOnekeyKernel<InType, CType>(ctx, result_schema, key_field_list, sort_directions, nulls_order)); \
   } break;
         PROCESS_SUPPORTED_TYPES(PROCESS)
 #undef PROCESS
@@ -1242,14 +1310,14 @@ SortArraysToIndicesKernel::SortArraysToIndicesKernel(
     }
   } else {
     // Will use Sort Codegen when sorting for several cols
-    impl_.reset(new Impl(ctx, key_field_list, result_schema, nulls_first, asc));
+    impl_.reset(new Impl(ctx, result_schema, key_field_list, sort_directions, nulls_order));
     auto status = impl_->LoadJITFunction(key_field_list, result_schema);
     if (!status.ok()) {
       std::cout << "LoadJITFunction failed, msg is " << status.message() << std::endl;
       throw;
     }
   }
-  kernel_name_ = "SortArraysToIndicesKernelKernel";
+  kernel_name_ = "SortArraysToIndicesKernel";
 }
 #undef PROCESS_SUPPORTED_TYPES
 
