@@ -892,19 +892,6 @@ class SortOnekeyKernel<DATATYPE, CTYPE, enable_if_number<CTYPE>>
   int col_num_;
   int key_id_;
   
-#define PROCESS_SUPPORTED_TYPES(PROCESS) \
-  PROCESS(arrow::UInt8Type)              \
-  PROCESS(arrow::Int8Type)               \
-  PROCESS(arrow::UInt16Type)             \
-  PROCESS(arrow::Int16Type)              \
-  PROCESS(arrow::UInt32Type)             \
-  PROCESS(arrow::Int32Type)              \
-  PROCESS(arrow::UInt64Type)             \
-  PROCESS(arrow::Int64Type)              \
-  PROCESS(arrow::FloatType)              \
-  PROCESS(arrow::DoubleType)             \
-  PROCESS(arrow::Date32Type)             \
-  PROCESS(arrow::Date64Type)             
   class SorterResultIterator : public ResultIterator<arrow::RecordBatch> {
    public:
     SorterResultIterator(arrow::compute::FunctionContext* ctx,
@@ -918,37 +905,22 @@ class SortOnekeyKernel<DATATYPE, CTYPE, enable_if_number<CTYPE>>
           cached_in_(cached) {
       col_num_ = schema->num_fields();
       indices_begin_ = (ArrayItemIndex*)indices_in->value_data();
+      // appender_type won't be used
+      AppenderBase::AppenderType appender_type = AppenderBase::left;
       for (int i = 0; i < col_num_; i++) {
         auto field = schema->field(i);
-        if (field->type()->id() == arrow::Type::STRING) {
-          auto app_ptr = std::make_shared<ArrayAppender<arrow::StringType>>(ctx);
-          auto appender = std::dynamic_pointer_cast<AppenderBase>(app_ptr);
-          appender_list_.push_back(appender);
-        } else {
-          switch (field->type()->id()) {
-#define PROCESS(InType)                                                       \
-  case InType::type_id: {                                                     \
-    auto app_ptr = std::make_shared<ArrayAppender<InType>>(ctx);              \
-    auto appender = std::dynamic_pointer_cast<AppenderBase>(app_ptr);         \
-    appender_list_.push_back(appender);                                       \
-  } break;
-      PROCESS_SUPPORTED_TYPES(PROCESS)
-#undef PROCESS
-  default: {
-          std::cout << "SortOnekeyKernel type not supported, type is "
-                    << field->type() << std::endl;
-            } break;
-          }
+        std::shared_ptr<AppenderBase> appender;
+        MakeAppender(ctx_, field->type(), appender_type, &appender);
+        appender_list_.push_back(appender);
+      }
+      for (int i = 0; i < col_num_; i++) {
+        arrow::ArrayVector array_vector = cached_in_[i];
+        int array_num = array_vector.size();
+        for (int array_id = 0; array_id < array_num; array_id++) {
+          auto arr = array_vector[array_id];
+          appender_list_[i]->AddArray(arr);
         }
       }
-    for (int i = 0; i < col_num_; i++) {
-      arrow::ArrayVector array_vector = cached_in_[i];
-      int array_num = array_vector.size();
-      for (int array_id = 0; array_id < array_num; array_id++) {
-        auto arr = array_vector[array_id];
-        appender_list_[i]->AddArray(arr);
-      }
-    }
       batch_size_ = GetBatchSize();
     }
     ~SorterResultIterator(){}
@@ -1000,7 +972,6 @@ class SortOnekeyKernel<DATATYPE, CTYPE, enable_if_number<CTYPE>>
     std::vector<std::shared_ptr<arrow::Array>> array_list_;
     std::shared_ptr<FixedSizeBinaryArray> indices_in_cache_;
   };
-#undef PROCESS_SUPPORTED_TYPES
 };
 
 ///////////////  SortArraysOneKey  ////////////////
@@ -1128,20 +1099,7 @@ class SortOnekeyKernel<DATATYPE, CTYPE, enable_if_string<CTYPE>>
   uint64_t nulls_total_ = 0;
   int col_num_;
   int key_id_;
-     
-#define PROCESS_SUPPORTED_TYPES(PROCESS) \
-  PROCESS(arrow::UInt8Type)              \
-  PROCESS(arrow::Int8Type)               \
-  PROCESS(arrow::UInt16Type)             \
-  PROCESS(arrow::Int16Type)              \
-  PROCESS(arrow::UInt32Type)             \
-  PROCESS(arrow::Int32Type)              \
-  PROCESS(arrow::UInt64Type)             \
-  PROCESS(arrow::Int64Type)              \
-  PROCESS(arrow::FloatType)              \
-  PROCESS(arrow::DoubleType)             \
-  PROCESS(arrow::Date32Type)             \
-  PROCESS(arrow::Date64Type)             
+
   class SorterResultIterator : public ResultIterator<arrow::RecordBatch> {
    public:
     SorterResultIterator(arrow::compute::FunctionContext* ctx,
@@ -1155,37 +1113,22 @@ class SortOnekeyKernel<DATATYPE, CTYPE, enable_if_string<CTYPE>>
           cached_in_(cached) {
       col_num_ = schema->num_fields();
       indices_begin_ = (ArrayItemIndex*)indices_in->value_data();
+      // appender_type won't be used
+      AppenderBase::AppenderType appender_type = AppenderBase::left;
       for (int i = 0; i < col_num_; i++) {
         auto field = schema->field(i);
-        if (field->type()->id() == arrow::Type::STRING) {
-          auto app_ptr = std::make_shared<ArrayAppender<arrow::StringType>>(ctx);
-          auto appender = std::dynamic_pointer_cast<AppenderBase>(app_ptr);
-          appender_list_.push_back(appender);
-        } else {
-          switch (field->type()->id()) {
-#define PROCESS(InType)                                                       \
-  case InType::type_id: {                                                     \
-    auto app_ptr = std::make_shared<ArrayAppender<InType>>(ctx);              \
-    auto appender = std::dynamic_pointer_cast<AppenderBase>(app_ptr);         \
-    appender_list_.push_back(appender);                                       \
-  } break;
-      PROCESS_SUPPORTED_TYPES(PROCESS)
-#undef PROCESS
-  default: {
-          std::cout << "SortOnekeyKernel type not supported, type is "
-                    << field->type() << std::endl;
-            } break;
-          }
+        std::shared_ptr<AppenderBase> appender;
+        MakeAppender(ctx_, field->type(), appender_type, &appender);
+        appender_list_.push_back(appender);
+      }
+      for (int i = 0; i < col_num_; i++) {
+        arrow::ArrayVector array_vector = cached_in_[i];
+        int array_num = array_vector.size();
+        for (int array_id = 0; array_id < array_num; array_id++) {
+          auto arr = array_vector[array_id];
+          appender_list_[i]->AddArray(arr);
         }
       }
-    for (int i = 0; i < col_num_; i++) {
-      arrow::ArrayVector array_vector = cached_in_[i];
-      int array_num = array_vector.size();
-      for (int array_id = 0; array_id < array_num; array_id++) {
-        auto arr = array_vector[array_id];
-        appender_list_[i]->AddArray(arr);
-      }
-    }
       batch_size_ = GetBatchSize();
     }
 
@@ -1236,7 +1179,6 @@ class SortOnekeyKernel<DATATYPE, CTYPE, enable_if_string<CTYPE>>
     std::vector<std::shared_ptr<arrow::Array>> array_list_;
     std::shared_ptr<FixedSizeBinaryArray> indices_in_cache_;
   };
-#undef PROCESS_SUPPORTED_TYPES
 };
 
 arrow::Status SortArraysToIndicesKernel::Make(
