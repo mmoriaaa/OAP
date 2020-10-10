@@ -1017,12 +1017,12 @@ class SortOnekeyKernel<DATATYPE, CTYPE, enable_if_string<CTYPE>>
       }
     }
     if (asc_) {
+      auto comp = [this](ArrayItemIndex x, ArrayItemIndex y) {
+        return cached_key_[x.array_id]->GetString(x.id) < cached_key_[y.array_id]->GetString(y.id);};
       if (nulls_first_) {
-        ska_sort(indices_begin + nulls_total_, indices_begin + items_total_, 
-            [this](auto& x) -> decltype(auto){ return cached_key_[x.array_id]->GetString(x.id); });
+        std::sort(indices_begin + nulls_total_, indices_begin + items_total_, comp);
       } else {
-        ska_sort(indices_begin, indices_begin + items_total_ - nulls_total_, 
-            [this](auto& x) -> decltype(auto){ return cached_key_[x.array_id]->GetString(x.id); });
+        std::sort(indices_begin, indices_begin + items_total_ - nulls_total_, comp);
       }
     } else {
       auto comp = [this](ArrayItemIndex x, ArrayItemIndex y) {
