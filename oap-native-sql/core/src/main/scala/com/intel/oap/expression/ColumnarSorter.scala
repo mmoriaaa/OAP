@@ -234,11 +234,24 @@ object ColumnarSorter extends Logging {
     val dirList = directions.toList
     val nullList = nullsOrder.toList
 
-    val key_args_node = TreeBuilder.makeFunction("key_schema",
+    val sortKeyFuncList: List[TreeNode] = sortOrder.toList.map(expr => {
+      val (nativeNode, returnType) = ConverterUtils.getColumnarFuncNode(expr.child)
+      if (s"${nativeNode.toProtobuf}".contains("none#")) {
+        throw new UnsupportedOperationException(
+          s"Unsupport to generate native expression from replaceable expression.")
+      }
+      nativeNode
+    })
+
+    val sort_keys_node = TreeBuilder.makeFunction(
+      "key_function",
+      sortKeyFuncList.asJava,
+      new ArrowType.Int(32, true) /*dummy ret type, won't be used*/ )
+
+    val key_args_node = TreeBuilder.makeFunction("key_field",
       keyFieldList.map(field => {
         TreeBuilder.makeField(field)
-      })
-        .asJava,
+      }).asJava,
       new ArrowType.Int(32, true) /*dummy ret type, won't be used*/ )
 
     val dir_node = TreeBuilder.makeFunction(
@@ -258,7 +271,7 @@ object ColumnarSorter extends Logging {
     val sortFuncName = "sortArraysToIndices"
     val sort_func_node = TreeBuilder.makeFunction(
       sortFuncName,
-      Lists.newArrayList(key_args_node, dir_node, nulls_order_node),
+      Lists.newArrayList(sort_keys_node, key_args_node, dir_node, nulls_order_node),
       new ArrowType.Int(32, true) /*dummy ret type, won't be used*/ )
 
     arrowSchema = new Schema(outputFieldList.asJava)

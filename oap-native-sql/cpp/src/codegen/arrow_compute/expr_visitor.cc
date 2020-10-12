@@ -331,35 +331,8 @@ arrow::Status ExprVisitor::MakeExprVisitorImpl(
       RETURN_NOT_OK(
           HashRelationVisitorImpl::Make(field_list, func_node, ret_fields, p, &impl_));
     } else if (child_func_name.compare("sortArraysToIndices") == 0) {
-      // first child is key_schema
-      std::vector<std::shared_ptr<arrow::Field>> key_field_list;
-      auto sort_func_node =
-          std::dynamic_pointer_cast<gandiva::FunctionNode>(func_node->children()[0]);
-      for (auto field : sort_func_node->children()) {
-        auto field_node = std::dynamic_pointer_cast<gandiva::FieldNode>(field);
-        key_field_list.push_back(field_node->field());
-      }
-      // second child is sort_directions
-      std::vector<bool> sort_directions;
-      auto sort_directions_node =
-          std::dynamic_pointer_cast<gandiva::FunctionNode>(func_node->children()[1]);
-      for (auto direction : sort_directions_node->children()) {
-        auto dir_node = std::dynamic_pointer_cast<gandiva::LiteralNode>(direction);
-        bool dir_val = arrow::util::get<bool>(dir_node->holder());
-        sort_directions.push_back(dir_val);
-      }
-      // third child is nulls_order
-      std::vector<bool> nulls_order;
-      auto nulls_order_node =
-          std::dynamic_pointer_cast<gandiva::FunctionNode>(func_node->children()[2]);
-      for (auto order : nulls_order_node->children()) {
-        auto order_node = std::dynamic_pointer_cast<gandiva::LiteralNode>(order);
-        bool order_val = arrow::util::get<bool>(order_node->holder());
-        nulls_order.push_back(order_val);
-      }
-      auto result_schema = arrow::schema(field_list);
-      RETURN_NOT_OK(SortArraysToIndicesVisitorImpl::Make(
-        p, &impl_, result_schema, key_field_list, sort_directions, nulls_order));
+      RETURN_NOT_OK(SortArraysToIndicesVisitorImpl::Make(field_list, func_node, 
+                                                         ret_fields, p, &impl_));
     }
     goto finish;
   }
