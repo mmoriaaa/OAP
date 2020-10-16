@@ -42,6 +42,29 @@
 #include "array_appender.h"
 #include "utils/macros.h"
 
+/**
+ *               The Overall Implementation of Sort Kernel
+ * In general, there are three kenels to use when sorting for different data.
+   They are SortInplaceKernel, SortOnekeyKernel and SortArraysToIndicesKernel.
+ * If sorting for one non-string col without payload, SortInplaceKernel is used.
+   In this kernel, if sorted data has no null value, ska_sort is used for asc 
+   direciton, and std sort is used for desc direciton. If sorted data has null
+   value, arrow sort is used.
+ * If sorting for one col with payload, or one string col without payload,
+   SortOnekeyKernel is used. There are two template classes for this kernel,
+   and the key dataype (numeric or string) determines which one will be compiled
+   in success. In this kernel, data is partitioned to null and valid value before
+   sort. ska_sort is used for asc direciton, and std sort is used for desc 
+   direciton.
+ * If sorting for multiple cols, SortArraysToIndicesKernel is used.
+   This kernel will do codegen, and std sort is used.
+ * Projection is supported in all the three kernels. If projection is required, 
+   projection is completed before sort, and the projected cols are used to do 
+   comparison.
+   FIXME: 1. when data has null value, desc and nulls last are not supported in
+   Inplace. 2. datatype change after projection is not supported in Inplace.
+*/
+
 namespace sparkcolumnarplugin {
 namespace codegen {
 namespace arrowcompute {
@@ -88,6 +111,7 @@ class SortArraysToIndicesKernel::Impl {
       std::shared_ptr<arrow::Schema> result_schema) {
     // generate ddl signature
     std::stringstream func_args_ss;
+    func_args_ss << (key_projector_? "project" : "original");
     int col_num = sort_directions_.size();
     for (int i = 0; i < col_num; i++) {
         func_args_ss << "[Sorter]" << (nulls_order_[i] ? "nulls_first" : "nulls_last") << "|"
@@ -785,13 +809,13 @@ class SortInplaceKernel : public SortArraysToIndicesKernel::Impl {
       auto length = (total_length_ - total_offset_) > batch_size_ ? batch_size_
                                                             : (total_length_ - total_offset_);
       /**
-       *  Here we take value from the sorted result_arr_ and append to builder.
-       * valid_count is used to count the valid value, for accessing the valid value
-       * in result_arr_.
+       * Here we take value from the sorted result_arr_ and append to builder.
+       * valid_count is used to count the valid value, for accessing the valid value 
+         in result_arr_.
        * total_count is used to count both valid and null value, for determing if all values
-       * are appended to builder in while loop.
+         are appended to builder in while loop.
        * valid_offset_ is used to count the total added valid value, for accessing the valid value
-       * in result_arr_.
+         in result_arr_.
        * total_offset_ is used to count the total added null and valid value.
       **/
       uint64_t valid_count = 0;
@@ -1324,7 +1348,9 @@ arrow::Status SortArraysToIndicesKernel::Make(
   PROCESS(arrow::UInt64Type)             \
   PROCESS(arrow::Int64Type)              \
   PROCESS(arrow::FloatType)              \
-  PROCESS(arrow::DoubleType)
+  PROCESS(arrow::DoubleType)             \
+  PROCESS(arrow::Date32Type)             \
+  PROCESS(arrow::Date64Type)
 SortArraysToIndicesKernel::SortArraysToIndicesKernel(
     arrow::compute::FunctionContext* ctx,
     std::shared_ptr<arrow::Schema> result_schema,
@@ -1391,13 +1417,13 @@ SortArraysToIndicesKernel::SortArraysToIndicesKernel(
           ctx, result_schema, key_projector, key_field_list, sort_directions, nulls_order));
       } else {
         switch (projected_types[0]->id()) {
-  #define PROCESS(InType)                                                       \
-    case InType::type_id: {                                                     \
-      using CType = typename arrow::TypeTraits<InType>::CType;                  \
+#define PROCESS(InType)                                                       \
+    case InType::type_id: {                                                   \
+      using CType = typename arrow::TypeTraits<InType>::CType;                \
       impl_.reset(new SortOnekeyKernel<InType, CType>(ctx, result_schema, key_projector, key_field_list, sort_directions, nulls_order)); \
     } break;
           PROCESS_SUPPORTED_TYPES(PROCESS)
-  #undef PROCESS
+#undef PROCESS
           default: {
             std::cout << "SortOnekeyKernel type not supported, type is "
                       << key_field_list[0]->type() << std::endl;
@@ -1411,13 +1437,13 @@ SortArraysToIndicesKernel::SortArraysToIndicesKernel(
           ctx, result_schema, key_projector, key_field_list, sort_directions, nulls_order));
       } else {
         switch (key_field_list[0]->type()->id()) {
-  #define PROCESS(InType)                                                       \
-    case InType::type_id: {                                                     \
-      using CType = typename arrow::TypeTraits<InType>::CType;                  \
+#define PROCESS(InType)                                                       \
+    case InType::type_id: {                                                   \
+      using CType = typename arrow::TypeTraits<InType>::CType;                \
       impl_.reset(new SortOnekeyKernel<InType, CType>(ctx, result_schema, key_projector, key_field_list, sort_directions, nulls_order)); \
     } break;
           PROCESS_SUPPORTED_TYPES(PROCESS)
-  #undef PROCESS
+#undef PROCESS
           default: {
             std::cout << "SortOnekeyKernel type not supported, type is "
                       << key_field_list[0]->type() << std::endl;
