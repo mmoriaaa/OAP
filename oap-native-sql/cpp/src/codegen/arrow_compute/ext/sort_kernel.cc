@@ -230,7 +230,7 @@ class SortArraysToIndicesKernel::Impl {
 
     std::string pre_sort_null_str = GetPreSortNull();
 
-    std::string sort_func_str = GetSortFunction(key_index_list_, key_projector_);
+    std::string sort_func_str = GetSortFunction();
 
     std::string make_result_iter_str =
         GetMakeResultIter(shuffle_typed_codegen_list.size());
@@ -287,6 +287,8 @@ class TypedSorterImpl : public CodeGenBase {
   }
 
   arrow::Status FinishInternal(std::shared_ptr<FixedSizeBinaryArray>* out) {
+    // we should support nulls first and nulls last here
+    // we should also support desc and asc here
     )" + comp_func_str +
            R"(
     // initiate buffer for all arrays
@@ -294,32 +296,19 @@ class TypedSorterImpl : public CodeGenBase {
     int64_t buf_size = items_total_ * sizeof(ArrayItemIndex);
     RETURN_NOT_OK(arrow::AllocateBuffer(ctx_->memory_pool(), buf_size, &indices_buf));
 
-    // start to partition not_null with null
     ArrayItemIndex* indices_begin =
         reinterpret_cast<ArrayItemIndex*>(indices_buf->mutable_data());
     ArrayItemIndex* indices_end = indices_begin + items_total_;
 
     int64_t indices_i = 0;
-    int64_t indices_null = 0;
-
-    // we should support nulls first and nulls last here
-    // we should also support desc and asc here
-
     for (int array_id = 0; array_id < num_batches_; array_id++) {
       for (int64_t i = 0; i < length_list_[array_id]; i++) {
-        if (!)" + first_cmp_col_str + R"(->IsNull(i)) {
-          )" +
-           pre_sort_valid_str +
-           R"(
-          indices_i++;
-        } else {
-          )" +
-           pre_sort_null_str +
-           R"(
-          indices_null++;
-        }
+        (indices_begin + indices_i)->array_id = array_id;
+        (indices_begin + indices_i)->id = i;
+        indices_i++;
       }
     }
+
     )" + sort_func_str +
            R"(
     std::shared_ptr<arrow::FixedSizeBinaryType> out_type;
@@ -474,43 +463,38 @@ extern "C" void MakeCodeGen(arrow::compute::FunctionContext* ctx,
     // Multiple keys sorting w/ nulls first/last is supported.
     std::stringstream ss;
     // For cols except the first one, we need to determine the position of nulls.
+    ss << "if (" << is_x_null << " && " << is_y_null << ") {\n";
+    ss << "return false;} " << "else if (" << is_x_null << ") {\n";
     // If value accessed from x is null, return true to make nulls first.
-    if (cur_key_index != 0) {
-      ss << "if (" << is_x_null << " && " << is_y_null << ") {\n";
-      ss << "return false;} " << "else if (" << is_x_null << ") {\n";
-      if (nulls_first) {
-        ss << "return true;\n}";
-      } else {
-        ss << "return false;\n}";
-      }
-      // If value accessed from y is null, return false to make nulls first.
-      ss << " else if (" << is_y_null << ") {\n";
-      if (nulls_first) {
-        ss << "return false;\n}";
-      } else {
-        ss << "return true;\n}";
-      }
-      // If values accessed from x and y are both not null
-      ss << " else {\n";
+    if (nulls_first) {
+      ss << "return true;\n}";
+    } else {
+      ss << "return false;\n}";
     }
+    // If value accessed from y is null, return false to make nulls first.
+    ss << " else if (" << is_y_null << ") {\n";
+    if (nulls_first) {
+      ss << "return false;\n}";
+    } else {
+      ss << "return true;\n}";
+    }
+    // If values accessed from x and y are both not null
+    ss << " else {\n";
 
     // Multiple keys sorting w/ different ordering is supported.
     // For string type of data, GetString should be used instead of GetView.
     if (asc) {
       if (data_type->id() == arrow::Type::STRING) {
-        ss << "return " << x_str_value << " < " << y_str_value << ";\n";
+        ss << "return " << x_str_value << " < " << y_str_value << ";\n}\n";
       } else {
-        ss << "return " << x_num_value << " < " << y_num_value << ";\n";
+        ss << "return " << x_num_value << " < " << y_num_value << ";\n}\n";
       }
     } else {
       if (data_type->id() == arrow::Type::STRING) {
-        ss << "return " << x_str_value << " > " << y_str_value << ";\n";
+        ss << "return " << x_str_value << " > " << y_str_value << ";\n}\n";
       } else {
-        ss << "return " << x_num_value << " > " << y_num_value << ";\n";
+        ss << "return " << x_num_value << " > " << y_num_value << ";\n}\n";
       }
-    }
-    if (cur_key_index != 0) {
-      ss << "}\n";
     }
     comp_str = ss.str();
     if ((cur_key_index + 1) == sort_key_index_list.size()) {
@@ -553,48 +537,10 @@ extern "C" void MakeCodeGen(arrow::compute::FunctionContext* ctx,
     (indices_end - nulls_total_ + indices_null)->id = i;)";
     }
   }
-  std::string GetSortFunction(std::vector<int>& key_index_list, 
-      const std::shared_ptr<gandiva::Projector>& key_projector) {
-    std::string array;
-    if (key_projector) {
-      array = "projected_0";
-    } else {
-      array = "cached_" + std::to_string(key_index_list[0]);
-    }
-    if (asc_) {
-      if (key_index_list.size() == 1) {
-        if (nulls_first_) {
-          return "ska_sort(indices_begin + nulls_total_, indices_begin + "
-                 "items_total_, "
-                 "[this](auto& x) -> decltype(auto){ return " + array +
-                 "_[x.array_id]->GetView(x.id); });";
-        } else {
-          return "ska_sort(indices_begin, indices_begin + items_total_ - "
-                 "nulls_total_, "
-                 "[this](auto& x) -> decltype(auto){ return " + array + 
-                 "_[x.array_id]->GetView(x.id); });";
-        }
-
-      } else {
-        if (nulls_first_) {
-          return "std::sort(indices_begin + nulls_total_, indices_begin + "
-                 "items_total_, "
-                 "comp);";
-        } else {
-          return "std::sort(indices_begin, indices_begin + items_total_ - "
-                 "nulls_total_, comp);";
-        }
-      }
-    } else {
-      if (nulls_first_) {
-        return "std::sort(indices_begin + nulls_total_, indices_begin + "
-               "items_total_, "
-               "comp);";
-      } else {
-        return "std::sort(indices_begin, indices_begin + items_total_ - "
-               "nulls_total_, comp);";
-      }
-    }
+  std::string GetSortFunction() {
+    return "std::sort(indices_begin, indices_begin + "
+            "items_total_, "
+            "comp);"; 
   }
   std::string GetMakeResultIter(int shuffle_size) {
     std::stringstream ss;

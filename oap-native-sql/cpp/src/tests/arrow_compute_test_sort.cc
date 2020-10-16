@@ -416,21 +416,21 @@ TEST(TestArrowComputeSort, SortTestMultipleKeys) {
   std::vector<std::shared_ptr<arrow::RecordBatch>> dummy_result_batches;
 
   std::vector<std::string> input_data_string = {"[8, 8, 4, 50, 52, 32, 11]",
-                                                R"([null, "b", "a", "b", "b","b", "b"])",
+                                                R"([null, "a", "a", "b", "b","b", "b"])",
                                                 "[11, 10, 5, 51, null, 33, 12]",
                                                 "[1, 3, 5, 10, null, 13, 2]"};
   MakeInputBatch(input_data_string, sch, &input_batch);
   input_batch_list.push_back(input_batch);
 
   std::vector<std::string> input_data_string_2 = {"[1, 14, 8, 42, 6, null, 2]",
-                                                  R"(["a", "a", null, "b", "b","b", "b"])",
+                                                  R"(["a", "a", null, "b", "b", "a", "b"])",
                                                   "[2, null, 44, 43, 7, 34, 3]",
                                                   "[9, 7, 5, 1, 5, null, 17]"};
   MakeInputBatch(input_data_string_2, sch, &input_batch);
   input_batch_list.push_back(input_batch);
 
   std::vector<std::string> input_data_string_3 = {"[3, 64, 8, 7, 9, 8, 33]",
-                                                  R"(["a", "a", "a", "b", "b","b", "b"])",
+                                                  R"(["a", "a", "b", "b", "b","b", "b"])",
                                                   "[4, 65, 16, 8, 10, 20, 34]",
                                                   "[8, 6, 2, 3, 10, 12, 15]"};
   MakeInputBatch(input_data_string_3, sch, &input_batch);
@@ -444,7 +444,7 @@ TEST(TestArrowComputeSort, SortTestMultipleKeys) {
   input_batch_list.push_back(input_batch);
 
   std::vector<std::string> input_data_string_5 = {"[37, null, 22, 13, 8, 59, 21]",
-                                                  R"(["a", "a", "a", "b", "b","b", "b"])",
+                                                  R"(["a", "b", "a", "b", "b","b", "b"])",
                                                   "[38, 67, 23, 14, null, 60, 22]",
                                                   "[16, 17, 5, 15, 9, null, 19]"};
   MakeInputBatch(input_data_string_5, sch, &input_batch);
@@ -456,10 +456,10 @@ TEST(TestArrowComputeSort, SortTestMultipleKeys) {
       "[1, 2, 3, 4, 6, 7, 8, 8, 8, 8, 8, 8, 9, 11, 13, 14, 17, 18, 20, 21, "
       "22, 23, 30, 32, 33, 35, 37, 41, 42, 50, 52, 59, 64, null, null]",
       R"(["a","b","a","a","b","b", null, null,"b","b","b","a","b","b","b","a","a","b","b","b","a","a","b","b","b","b","a","a","b","b","b","b","a","b","a"])",
-      "[2, 3, 4, 5, 7, 8, 11, 44, null, 10, 20, 16, 10, 12, 14, null, 18, 19, 21, 22, 23, "
-      "24, 31, 33, 34, 36, 38, 42, 43, 51, null, 60, 65, 34, 67]",
-      "[9, 17, 8, 5, 5, 3, 1, 5, 9, 3, 12, 2, 10, 2, 15, 7, 16, 51, null, 19, 5, "
-      "15, 12, 13, 15, 33, 16, 2, 1, 10, null, null, 6, null, 17]"};
+      "[2, 3, 4, 5, 7, 8, 11, 44, null, 16, 20, 10, 10, 12, 14, null, 18, 19, 21, 22, 23, "
+      "24, 31, 33, 34, 36, 38, 42, 43, 51, null, 60, 65, 67, 34]",
+      "[9, 17, 8, 5, 5, 3, 1, 5, 9, 2, 12, 3, 10, 2, 15, 7, 16, 51, null, 19, 5, "
+      "15, 12, 13, 15, 33, 16, 2, 1, 10, null, null, 6, 17, null]"};
 
   MakeInputBatch(expected_result_string, sch, &expected_result);
 
