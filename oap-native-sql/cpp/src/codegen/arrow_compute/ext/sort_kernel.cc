@@ -106,6 +106,7 @@ class SortArraysToIndicesKernel::Impl {
     }
   }
   virtual ~Impl() {}
+
   virtual arrow::Status LoadJITFunction(
       std::vector<std::shared_ptr<arrow::Field>> key_field_list,
       std::shared_ptr<arrow::Schema> result_schema) {

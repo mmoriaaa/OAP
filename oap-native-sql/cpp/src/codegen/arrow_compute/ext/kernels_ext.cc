@@ -71,8 +71,8 @@ class SplitArrayListWithActionKernel::Impl {
       : ctx_(ctx), action_name_list_(action_name_list) {
     InitActionList(type_list);
   }
-  virtual ~Impl() {}
-
+  virtual ~Impl() {std::cout << "SplitArrayListWithActionKernel::Impl" << std::endl;}
+  
   arrow::Status InitActionList(std::vector<std::shared_ptr<arrow::DataType>> type_list) {
     int type_id = 0;
 #ifdef DEBUG
@@ -1181,6 +1181,8 @@ class EncodeArrayTypedImpl : public EncodeArrayKernel::Impl {
     hash_table_ = std::make_shared<MemoTableType>(ctx_->memory_pool());
     builder_ = std::make_shared<arrow::Int32Builder>(ctx_->memory_pool());
   }
+  ~EncodeArrayTypedImpl() {
+    std::cout << "Deconstruct EncodeArrayTypedImpl" << std::endl;}
   arrow::Status Evaluate(const std::shared_ptr<arrow::Array>& in,
                          std::shared_ptr<arrow::Array>* out) {
     // arrow::compute::Datum input_datum(in);
@@ -1313,6 +1315,8 @@ class HashArrayKernel::Impl {
     auto status = gandiva::Projector::Make(schema_, {expr}, configuration, &projector);
     pool_ = ctx_->memory_pool();
   }
+
+  virtual ~Impl() {}
 
   arrow::Status Evaluate(const ArrayList& in, std::shared_ptr<arrow::Array>* out) {
     auto length = in[0]->length();

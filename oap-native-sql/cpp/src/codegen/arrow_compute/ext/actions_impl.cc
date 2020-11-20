@@ -94,9 +94,9 @@ class UniqueAction : public ActionBase {
     builder_.reset(arrow::internal::checked_cast<BuilderType*>(array_builder.release()));
   }
   ~UniqueAction() {
-#ifdef DEBUG
+// #ifdef DEBUG
     std::cout << "Destruct UniqueAction" << std::endl;
-#endif
+// #endif
   }
 
   int RequiredColNum() { return 1; }
@@ -820,6 +820,16 @@ class SumCountAction : public ActionBase {
 #ifdef DEBUG
     std::cout << "Construct SumCountAction" << std::endl;
 #endif
+  // std::unique_ptr<arrow::ArrayBuilder> sum_builder;
+  // std::unique_ptr<arrow::ArrayBuilder> count_builder;
+  // arrow::MakeBuilder(ctx_->memory_pool(),
+  //                    arrow::TypeTraits<arrow::DoubleType>::type_singleton(), &sum_builder);
+  // arrow::MakeBuilder(ctx_->memory_pool(),
+  //                    arrow::TypeTraits<arrow::Int64Type>::type_singleton(), &count_builder);                   
+  // sum_builder_.reset(
+  //     arrow::internal::checked_cast<arrow::DoubleBuilder*>(sum_builder.release()));
+  // count_builder_.reset(
+  //     arrow::internal::checked_cast<arrow::Int64Builder*>(count_builder.release()));
   }
   ~SumCountAction() {
 #ifdef DEBUG
@@ -882,6 +892,8 @@ class SumCountAction : public ActionBase {
     RETURN_NOT_OK(count_builder->Finish(&count_array));
     out->push_back(sum_array);
     out->push_back(count_array);
+    // delete sum_builder;
+    // delete count_builder;
     return arrow::Status::OK();
   }
 
@@ -890,6 +902,8 @@ class SumCountAction : public ActionBase {
   arrow::Status Finish(uint64_t offset, uint64_t length, ArrayList* out) override {
     auto sum_builder = new arrow::DoubleBuilder(ctx_->memory_pool());
     auto count_builder = new arrow::Int64Builder(ctx_->memory_pool());
+    // sum_builder_->Reset();
+    // count_builder_->Reset();
     for (uint64_t i = 0; i < length; i++) {
       RETURN_NOT_OK(sum_builder->Append(cache_sum_[offset + i]));
       RETURN_NOT_OK(count_builder->Append(cache_count_[offset + i]));
@@ -901,6 +915,8 @@ class SumCountAction : public ActionBase {
     RETURN_NOT_OK(count_builder->Finish(&count_array));
     out->push_back(sum_array);
     out->push_back(count_array);
+    // delete sum_builder;
+    // delete count_builder;
     return arrow::Status::OK();
   }
 
@@ -917,6 +933,8 @@ class SumCountAction : public ActionBase {
   // result
   std::vector<double> cache_sum_;
   std::vector<int64_t> cache_count_;
+  // std::unique_ptr<arrow::DoubleBuilder> sum_builder_;
+  // std::unique_ptr<arrow::Int64Builder> count_builder_;
 };
 
 //////////////// SumCountMergeAction ///////////////
@@ -1162,9 +1180,9 @@ class StddevSampPartialAction : public ActionBase {
 #endif
   }
   ~StddevSampPartialAction() {
-#ifdef DEBUG
+// #ifdef DEBUG
     std::cout << "Destruct StddevSampPartialAction" << std::endl;
-#endif
+// #endif
   }
 
   int RequiredColNum() { return 1; }

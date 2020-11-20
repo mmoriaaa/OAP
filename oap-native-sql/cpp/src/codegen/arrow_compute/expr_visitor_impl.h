@@ -39,6 +39,7 @@ namespace arrowcompute {
 class ExprVisitorImpl {
  public:
   ExprVisitorImpl(ExprVisitor* p) : p_(p) {}
+  virtual ~ExprVisitorImpl() {}
   virtual arrow::Status Eval() {
     return arrow::Status::NotImplemented("ExprVisitorImpl Eval is abstract.");
   }
@@ -97,6 +98,8 @@ class ExprVisitorImpl {
 class SplitArrayListWithActionVisitorImpl : public ExprVisitorImpl {
  public:
   SplitArrayListWithActionVisitorImpl(ExprVisitor* p) : ExprVisitorImpl(p) {}
+  ~SplitArrayListWithActionVisitorImpl() {
+    std::cout << "Deconstruct SplitArrayListWithActionVisitorImpl" << std::endl;}
   static arrow::Status Make(ExprVisitor* p, std::shared_ptr<ExprVisitorImpl>* out) {
     auto impl = std::make_shared<SplitArrayListWithActionVisitorImpl>(p);
     *out = impl;
@@ -512,6 +515,7 @@ class WindowVisitorImpl : public ExprVisitorImpl {
 class EncodeVisitorImpl : public ExprVisitorImpl {
  public:
   EncodeVisitorImpl(ExprVisitor* p) : ExprVisitorImpl(p) {}
+  ~EncodeVisitorImpl() {std::cout << "Deconstruct EncodeVisitorImpl" << std::endl;}
   static arrow::Status Make(ExprVisitor* p, std::shared_ptr<ExprVisitorImpl>* out) {
     auto impl = std::make_shared<EncodeVisitorImpl>(p);
     *out = impl;
@@ -900,6 +904,7 @@ class HashAggregateArraysVisitorImpl : public ExprVisitorImpl {
         field_list_(field_list),
         ret_fields_(ret_fields),
         ExprVisitorImpl(p) {}
+  ~HashAggregateArraysVisitorImpl() {}      
   static arrow::Status Make(std::vector<std::shared_ptr<arrow::Field>> field_list,
                             std::vector<std::shared_ptr<gandiva::Node>> action_list,
                             std::vector<std::shared_ptr<arrow::Field>> ret_fields,
