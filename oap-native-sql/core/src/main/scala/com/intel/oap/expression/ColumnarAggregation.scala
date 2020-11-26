@@ -540,6 +540,124 @@ class ColumnarAggregation(
 
 object ColumnarAggregation {
   var columnarAggregation: ColumnarAggregation = _
+
+  def buildCheck(groupingExpressions: Seq[NamedExpression],
+                 originalInputAttributes: Seq[Attribute],
+                 aggregateExpressions: Seq[AggregateExpression],
+                 resultExpressions: Seq[NamedExpression]): Unit = {
+    // check datatype and aggregate children function
+    for (expr <- aggregateExpressions) {
+      val internalExpressionList = expr.aggregateFunction.children
+      ColumnarProjection.buildCheck(originalInputAttributes, internalExpressionList)
+      internalExpressionList.foreach(projectExpr => {
+        val attr = ConverterUtils.getResultAttrFromExpr(projectExpr, s"res")
+        if (attr.dataType.isInstanceOf[DecimalType]) {
+          throw new UnsupportedOperationException(s"Decimal type is not supported in ColumnarAggregation.")
+        }
+      })
+    }
+    // check project
+    ColumnarProjection.buildCheck(originalInputAttributes, groupingExpressions)
+    ColumnarProjection.buildCheck(originalInputAttributes, resultExpressions)
+    // check aggregate
+    checkAggregate(aggregateExpressions)
+  }
+
+  def checkAggregate(aggregateExpressions: Seq[AggregateExpression]): Unit = {
+    val size = aggregateExpressions.size
+    var res_index = 0
+    for (expIdx <- 0 until size) {
+      val exp: AggregateExpression = aggregateExpressions(expIdx)
+      val mode = exp.mode
+      val aggregateFunc = exp.aggregateFunction
+      aggregateFunc match {
+        case Average(_) => mode match {
+          case Partial => {
+            val avg = aggregateFunc.asInstanceOf[Average]
+            val aggBufferAttr = avg.inputAggBufferAttributes
+            for (index <- 0 until aggBufferAttr.size) {
+              ConverterUtils.getAttrFromExpr(aggBufferAttr(index))
+            }
+            res_index += 2
+          }
+          case PartialMerge => {
+            val avg = aggregateFunc.asInstanceOf[Average]
+            val aggBufferAttr = avg.inputAggBufferAttributes
+            for (index <- 0 until aggBufferAttr.size) {
+              ConverterUtils.getAttrFromExpr(aggBufferAttr(index))
+            }
+            res_index += 1
+          }
+          case Final => {
+            res_index += 1
+          }
+        }
+        case Sum(_) => mode match {
+          case Partial | PartialMerge => {
+            val sum = aggregateFunc.asInstanceOf[Sum]
+            val aggBufferAttr = sum.inputAggBufferAttributes
+            ConverterUtils.getAttrFromExpr(aggBufferAttr(0))
+            res_index += 1
+          }
+          case _ => {
+            res_index += 1
+          }
+        }
+        case Count(_) => mode match {
+          case Partial | PartialMerge => {
+            val count = aggregateFunc.asInstanceOf[Count]
+            val aggBufferAttr = count.inputAggBufferAttributes
+            ConverterUtils.getAttrFromExpr(aggBufferAttr(0))
+            res_index += 1
+          }
+          case _ => {
+            res_index += 1
+          }
+        }
+        case Max(_) => mode match {
+          case Partial | PartialMerge => {
+            val max = aggregateFunc.asInstanceOf[Max]
+            val aggBufferAttr = max.inputAggBufferAttributes
+            ConverterUtils.getAttrFromExpr(aggBufferAttr(0))
+            res_index += 1
+          }
+          case _ => {
+            res_index += 1
+          }
+        }
+        case Min(_) => mode match {
+          case Partial | PartialMerge => {
+            val min = aggregateFunc.asInstanceOf[Min]
+            val aggBufferAttr = min.inputAggBufferAttributes
+            ConverterUtils.getAttrFromExpr(aggBufferAttr(0))
+            res_index += 1
+          }
+          case _ => {
+            res_index += 1
+          }
+        }
+        case StddevSamp(_) => mode match {
+          case Partial => {
+            val stddevSamp = aggregateFunc.asInstanceOf[StddevSamp]
+            val aggBufferAttr = stddevSamp.inputAggBufferAttributes
+            for (index <- 0 until aggBufferAttr.size) {
+              ConverterUtils.getAttrFromExpr(aggBufferAttr(index))
+            }
+            res_index += 3
+          }
+          case PartialMerge => {
+            throw new UnsupportedOperationException("stddev_samp PartialMerge is not supported.")
+          }
+          case Final => {
+            res_index += 1
+          }
+        }
+        case other =>
+          throw new UnsupportedOperationException(s"not currently supported: $other.")
+      }
+    }
+  }
+
   def create(
       partIndex: Int,
       groupingExpressions: Seq[NamedExpression],
