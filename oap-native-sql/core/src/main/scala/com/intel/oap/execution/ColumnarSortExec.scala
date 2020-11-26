@@ -66,6 +66,8 @@ class ColumnarSortExec(
   val numOutputRows = longMetric("numOutputRows")
   val numOutputBatches = longMetric("numOutputBatches")
 
+  ColumnarSorter.buildCheck(sortOrder)
+
   def getCodeGenSignature =
     if (!sortOrder
       .filter(
