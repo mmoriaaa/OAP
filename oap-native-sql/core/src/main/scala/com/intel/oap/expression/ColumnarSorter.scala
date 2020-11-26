@@ -285,6 +285,16 @@ object ColumnarSorter extends Logging {
     /////////////////////////////////////////////////////
   }
 
+  def buildCheck(sortOrder: Seq[SortOrder]): Unit = synchronized {
+    for (sort <- sortOrder) {
+      val keyType = ConverterUtils.getAttrFromExpr(sort.child).dataType
+      if (keyType.isInstanceOf[NullType] || keyType.isInstanceOf[TimestampType] ||
+        keyType.isInstanceOf[BinaryType] || keyType.isInstanceOf[DecimalType]) {
+        throw new UnsupportedOperationException(s"Type ${keyType} is not supported in ColumnarSorter.")
+      }
+    }
+  }
+
   def prebuild(
       sortOrder: Seq[SortOrder],
       outputAsColumnar: Boolean,
