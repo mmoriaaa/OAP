@@ -62,7 +62,8 @@ class ColumnarConditionProjector(
   var elapseTime_make: Long = 0
   val start_make: Long = System.nanoTime()
   var selectionBuffer: ArrowBuf = null
-  if (projectFieldList.size == 0 && conditionFieldList.size == 0) {
+  if (projectFieldList.size == 0 && conditionFieldList.size == 0
+      && (projPrepareList == null || projPrepareList.isEmpty)) {
     skip = true
   } else {
     skip = false
@@ -315,6 +316,21 @@ object ColumnarConditionProjector extends Logging {
       Boolean) = {
     logInfo(
       s"originalInputAttributes is ${originalInputAttributes}, \nCondition is ${condExpr}, \nProjection is ${projectList}")
+    // datatype check
+    originalInputAttributes.toList.foreach(expr => {
+      val attr = ConverterUtils.getAttrFromExpr(expr)
+      if (attr.dataType.isInstanceOf[NullType] || attr.dataType.isInstanceOf[DecimalType])
+        throw new UnsupportedOperationException(s"Null type is not supported in ColumnarAggregation.")
+    })
+    if (projectList != null) {
+      projectList.toList.foreach(expr => {
+        expr.children.foreach(child => {
+          if (child.dataType.isInstanceOf[NullType] || child.dataType.isInstanceOf[DecimalType])
+            throw new UnsupportedOperationException(s"Null type is not supported in ColumnarAggregation.")
+        })
+      })
+    }
+
     val conditionInputList: java.util.List[Field] = Lists.newArrayList()
     val (condPrepareList, skip_filter) = if (condExpr != null) {
       val columnarCondExpr: Expression = ColumnarExpressionConverter
