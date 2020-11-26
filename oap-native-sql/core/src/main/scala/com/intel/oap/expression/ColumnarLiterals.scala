@@ -123,6 +123,13 @@ class ColumnarLiteral(lit: Literal)
           case _ =>
             throw new UnsupportedOperationException("can't support Literal datatype is CalendarIntervalType while real value is not.")
         }
+      case b: BinaryType =>
+        value match {
+          case null =>
+            (TreeBuilder.makeNull(resultType), resultType)
+          case _ =>
+            (TreeBuilder.makeBinaryLiteral(value.asInstanceOf[Array[Byte]]), resultType)
+        }
     }
   }
 }
