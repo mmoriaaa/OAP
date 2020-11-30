@@ -86,7 +86,7 @@ class DataFrameFunctionsSuite extends QueryTest with SharedSparkSession {
     assert(row.getMap[Int, String](0) === Map(2 -> "a"))
   }
 
-  ignore("map with arrays") {
+  test("map with arrays") {
     val df1 = Seq((Seq(1, 2), Seq("a", "b"))).toDF("k", "v")
     val expectedType = MapType(IntegerType, StringType, valueContainsNull = true)
     val row = df1.select(map_from_arrays($"k", $"v")).first()
@@ -180,7 +180,7 @@ class DataFrameFunctionsSuite extends QueryTest with SharedSparkSession {
     checkAnswer(result, Seq(Row(Row("v", 5.0)), Row(Row("v", 5.0))))
   }
 
-  ignore("constant functions") {
+  test("constant functions") {
     checkAnswer(
       sql("SELECT E()"),
       Row(scala.math.E)
@@ -295,7 +295,7 @@ class DataFrameFunctionsSuite extends QueryTest with SharedSparkSession {
     )
   }
 
-  ignore("pmod") {
+  test("pmod") {
     val intData = Seq((7, 3), (-7, 3)).toDF("a", "b")
     checkAnswer(
       intData.select(pmod($"a", $"b")),
@@ -901,7 +901,7 @@ class DataFrameFunctionsSuite extends QueryTest with SharedSparkSession {
     assert(e2.message.contains(errorMsg2))
   }
 
-  ignore("SPARK-29600: ArrayContains function may return incorrect result for DecimalType") {
+  test("SPARK-29600: ArrayContains function may return incorrect result for DecimalType") {
     checkAnswer(
       sql("select array_contains(array(1.10), 1.1)"),
       Seq(Row(true))
@@ -1086,7 +1086,7 @@ class DataFrameFunctionsSuite extends QueryTest with SharedSparkSession {
     }
   }
 
-  ignore("reverse function - string") {
+  test("reverse function - string") {
     val oneRowDF = Seq(("Spark", 3215)).toDF("s", "i")
     def testString(): Unit = {
       checkAnswer(oneRowDF.select(reverse($"s")), Seq(Row("krapS")))
@@ -1197,7 +1197,7 @@ class DataFrameFunctionsSuite extends QueryTest with SharedSparkSession {
     assert(ex2.getMessage.contains("data type mismatch"))
   }
 
-  ignore("array position function") {
+  test("array position function") {
     val df = Seq(
       (Seq[Int](1, 2), "x", 1),
       (Seq[Int](), "x", 1)
@@ -1288,7 +1288,7 @@ class DataFrameFunctionsSuite extends QueryTest with SharedSparkSession {
     assert(e2.message.contains(errorMsg2))
   }
 
-  ignore("element_at function") {
+  test("element_at function") {
     val df = Seq(
       (Seq[String]("1", "2", "3"), 1),
       (Seq[String](null, ""), -1),

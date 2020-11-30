@@ -285,7 +285,7 @@ class DataFrameNaFunctionsSuite extends QueryTest with SharedSparkSession {
     (df1, df2)
   }
 
-  ignore("fill unambiguous field for join operation") {
+  test("fill unambiguous field for join operation") {
     val (df1, df2) = createDFsWithSameFieldsName()
     val joined_df = df1.join(df2, Seq("f1"), joinType = "left_outer")
     checkAnswer(joined_df.na.fill("", cols = Seq("f4")),
@@ -411,7 +411,7 @@ class DataFrameNaFunctionsSuite extends QueryTest with SharedSparkSession {
       Row("Alice") :: Row("David") :: Nil)
   }
 
-  ignore("SPARK-29890: duplicate names are allowed for fill() if column names are not specified.") {
+  test("SPARK-29890: duplicate names are allowed for fill() if column names are not specified.") {
     val left = Seq(("1", null), ("3", "4")).toDF("col1", "col2")
     val right = Seq(("1", "2"), ("3", null)).toDF("col1", "col2")
     val df = left.join(right, Seq("col1"))

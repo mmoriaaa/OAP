@@ -1161,7 +1161,7 @@ class CachedTableSuite extends QueryTest with SQLTestUtils
     }
   }
 
-  ignore("SPARK-30494 Fix the leak of cached data when replace an existing view") {
+  test("SPARK-30494 Fix the leak of cached data when replace an existing view") {
     withTempView("tempView") {
       spark.catalog.clearCache()
       sql("create or replace temporary view tempView as select 1")

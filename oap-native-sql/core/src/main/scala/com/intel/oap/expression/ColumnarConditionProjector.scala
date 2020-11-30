@@ -320,7 +320,7 @@ object ColumnarConditionProjector extends Logging {
     originalInputAttributes.toList.foreach(expr => {
       val attr = ConverterUtils.getAttrFromExpr(expr)
       if (attr.dataType.isInstanceOf[NullType] || attr.dataType.isInstanceOf[DecimalType])
-        throw new UnsupportedOperationException(s"Null type is not supported in ColumnarAggregation.")
+        throw new UnsupportedOperationException(s"Null type is not supported in ColumnarConditionProjector.")
     })
     if (projectList != null) {
       projectList.toList.foreach(expr => {

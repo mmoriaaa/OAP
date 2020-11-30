@@ -17,6 +17,7 @@
 
 package org.apache.spark.sql
 
+import com.intel.oap.execution.ColumnarBroadcastHashJoinExec
 import org.apache.spark.SparkConf
 import org.apache.spark.sql.catalyst.TableIdentifier
 import org.apache.spark.sql.catalyst.plans.{Inner, InnerLike, LeftOuter, RightOuter}
@@ -55,7 +56,7 @@ class DataFrameJoinSuite extends QueryTest
       .set("spark.sql.columnar.sort.broadcastJoin", "true")
       .set("spark.oap.sql.columnar.preferColumnar", "true")
 
-  ignore("join - join using") {
+  test("join - join using") {
     val df = Seq(1, 2, 3).map(i => (i, i.toString)).toDF("int", "str")
     val df2 = Seq(1, 2, 3).map(i => (i, (i + 1).toString)).toDF("int", "str")
 
@@ -64,7 +65,7 @@ class DataFrameJoinSuite extends QueryTest
       Row(1, "1", "2") :: Row(2, "2", "3") :: Row(3, "3", "4") :: Nil)
   }
 
-  ignore("join - join using multiple columns") {
+  test("join - join using multiple columns") {
     val df = Seq(1, 2, 3).map(i => (i, i + 1, i.toString)).toDF("int", "int2", "str")
     val df2 = Seq(1, 2, 3).map(i => (i, i + 1, (i + 1).toString)).toDF("int", "int2", "str")
 
@@ -73,7 +74,7 @@ class DataFrameJoinSuite extends QueryTest
       Row(1, 2, "1", "2") :: Row(2, 3, "2", "3") :: Row(3, 4, "3", "4") :: Nil)
   }
 
-  ignore("join - sorted columns not in join's outputSet") {
+  test("join - sorted columns not in join's outputSet") {
     val df = Seq((1, 2, "1"), (3, 4, "3")).toDF("int", "int2", "str_sort").as("df1")
     val df2 = Seq((1, 3, "1"), (5, 6, "5")).toDF("int", "int2", "str").as("df2")
     val df3 = Seq((1, 3, "1"), (5, 6, "5")).toDF("int", "int2", "str").as("df3")
@@ -89,7 +90,7 @@ class DataFrameJoinSuite extends QueryTest
       Row(5, 5) :: Row(1, 1) :: Nil)
   }
 
-  ignore("join - join using multiple columns and specifying join type") {
+  test("join - join using multiple columns and specifying join type") {
     val df = Seq((1, 2, "1"), (3, 4, "3")).toDF("int", "int2", "str")
     val df2 = Seq((1, 3, "1"), (5, 6, "5")).toDF("int", "int2", "str")
 
@@ -147,11 +148,11 @@ class DataFrameJoinSuite extends QueryTest
 
     // equijoin - should be converted into broadcast join
     val plan1 = df1.join(broadcast(df2), "key").queryExecution.sparkPlan
-    assert(plan1.collect { case p: BroadcastHashJoinExec => p }.size === 1)
+    assert(plan1.collect { case p: ColumnarBroadcastHashJoinExec => p }.size === 1)
 
     // no join key -- should not be a broadcast join
     val plan2 = df1.crossJoin(broadcast(df2)).queryExecution.sparkPlan
-    assert(plan2.collect { case p: BroadcastHashJoinExec => p }.size === 0)
+    assert(plan2.collect { case p: ColumnarBroadcastHashJoinExec => p }.size === 0)
 
     // planner should not crash without a join
     broadcast(df1).queryExecution.sparkPlan
@@ -164,23 +165,23 @@ class DataFrameJoinSuite extends QueryTest
     }
   }
 
-  ignore("broadcast join hint using Dataset.hint") {
+  test("broadcast join hint using Dataset.hint") {
     // make sure a giant join is not broadcastable
     val plan1 =
       spark.range(10e10.toLong)
         .join(spark.range(10e10.toLong), "id")
         .queryExecution.executedPlan
-    assert(plan1.collect { case p: BroadcastHashJoinExec => p }.size == 0)
+    assert(plan1.collect { case p: ColumnarBroadcastHashJoinExec => p }.size == 0)
 
     // now with a hint it should be broadcasted
     val plan2 =
       spark.range(10e10.toLong)
         .join(spark.range(10e10.toLong).hint("broadcast"), "id")
         .queryExecution.executedPlan
-    assert(collect(plan2) { case p: BroadcastHashJoinExec => p }.size == 1)
+    assert(collect(plan2) { case p: ColumnarBroadcastHashJoinExec => p }.size == 1)
   }
 
-  ignore("join - outer join conversion") {
+  test("join - outer join conversion") {
     val df = Seq((1, 2, "1"), (3, 4, "3")).toDF("int", "int2", "str").as("a")
     val df2 = Seq((1, 3, "1"), (5, 6, "5")).toDF("int", "int2", "str").as("b")
 
@@ -226,7 +227,7 @@ class DataFrameJoinSuite extends QueryTest
       Row(1, 2, "1", 1, 3, "1") :: Nil)
   }
 
-  ignore("process outer join results using the non-nullable columns in the join input") {
+  test("process outer join results using the non-nullable columns in the join input") {
     // Filter data using a non-nullable column from a right table
     val df1 = Seq((0, 0), (1, 0), (2, 0), (3, 0), (4, 0)).toDF("id", "count")
     val df2 = Seq(Tuple1(0), Tuple1(1)).toDF("id").groupBy("id").count
@@ -247,7 +248,7 @@ class DataFrameJoinSuite extends QueryTest
     )
   }
 
-  ignore("SPARK-16991: Full outer join followed by inner join produces wrong results") {
+  test("SPARK-16991: Full outer join followed by inner join produces wrong results") {
     val a = Seq((1, 2), (2, 3)).toDF("a", "b")
     val b = Seq((2, 5), (3, 4)).toDF("a", "c")
     val c = Seq((3, 1)).toDF("a", "d")
@@ -292,7 +293,7 @@ class DataFrameJoinSuite extends QueryTest
     case _ => Seq(plan)
   }
 
-  ignore("SPARK-24690 enables star schema detection even if CBO disabled") {
+  test("SPARK-24690 enables star schema detection even if CBO disabled") {
     withTable("r0", "r1", "r2", "r3") {
       withTempDir { dir =>
 
@@ -347,7 +348,7 @@ class DataFrameJoinSuite extends QueryTest
     }
   }
 
-  ignore("Supports multi-part names for broadcast hint resolution") {
+  test("Supports multi-part names for broadcast hint resolution") {
     val (table1Name, table2Name) = ("t1", "t2")
 
     withTempDatabase { dbName =>
@@ -358,7 +359,7 @@ class DataFrameJoinSuite extends QueryTest
 
           def checkIfHintApplied(df: DataFrame): Unit = {
             val sparkPlan = df.queryExecution.executedPlan
-            val broadcastHashJoins = sparkPlan.collect { case p: BroadcastHashJoinExec => p }
+            val broadcastHashJoins = sparkPlan.collect { case p: ColumnarBroadcastHashJoinExec => p }
             assert(broadcastHashJoins.size == 1)
             val broadcastExchanges = broadcastHashJoins.head.collect {
               case p: BroadcastExchangeExec => p
@@ -373,7 +374,7 @@ class DataFrameJoinSuite extends QueryTest
 
           def checkIfHintNotApplied(df: DataFrame): Unit = {
             val sparkPlan = df.queryExecution.executedPlan
-            val broadcastHashJoins = sparkPlan.collect { case p: BroadcastHashJoinExec => p }
+            val broadcastHashJoins = sparkPlan.collect { case p: ColumnarBroadcastHashJoinExec => p }
             assert(broadcastHashJoins.isEmpty)
           }
 
