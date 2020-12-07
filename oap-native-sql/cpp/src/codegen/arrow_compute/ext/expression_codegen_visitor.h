@@ -47,6 +47,7 @@ class ExpressionCodegenVisitor : public VisitorBase {
 
   std::string GetInput();
   std::string GetResult();
+  std::string GetNaNCheck();
   std::string GetResultValidity();
   std::string GetPreCheck();
   std::string GetPrepare();
@@ -77,6 +78,7 @@ class ExpressionCodegenVisitor : public VisitorBase {
   std::string real_codes_str_;
   std::string real_validity_str_;
   std::string codes_str_;
+  std::string nan_check_str_;
   std::string codes_validity_str_;
   std::string prepare_str_;
   std::string input_codes_str_;
@@ -84,6 +86,7 @@ class ExpressionCodegenVisitor : public VisitorBase {
 
   std::string CombineValidity(std::vector<std::string> validity_list);
   std::string GetValidityName(std::string name);
+  std::string GetNaNCheckStr(std::string left, std::string right, std::string func);
 };
 
 static arrow::Status MakeExpressionCodegenVisitor(

@@ -301,6 +301,7 @@ class ConditionedProbeKernel::Impl {
       function_define_ss << "bool " << function_name << "(ArrayItemIndex x, int y) {"
                          << std::endl;
       function_define_ss << condition_node_visitor->GetPrepare() << std::endl;
+      function_define_ss << condition_node_visitor->GetNaNCheck() << std::endl;
       function_define_ss << "return " << condition_node_visitor->GetResult() << ";"
                          << std::endl;
       function_define_ss << "}" << std::endl;
