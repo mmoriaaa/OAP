@@ -304,6 +304,20 @@ class ColumnarConditionProjector(
 } // end of class
 
 object ColumnarConditionProjector extends Logging {
+  def buildCheck(projectList: Seq[Expression],
+                 originalInputAttributes: Seq[Attribute]): Unit = {
+    // check datatype
+    val unsupportedTypes = List(NullType, TimestampType, BinaryType)
+    originalInputAttributes.toList.foreach(attr => {
+      if (unsupportedTypes.indexOf(attr.dataType) != -1 || attr.dataType.isInstanceOf[DecimalType])
+        throw new UnsupportedOperationException(s"${attr.dataType} is not supported in ColumnarConditionProjector.")
+    })
+    // check result type
+    originalInputAttributes.toList.foreach(attr => {
+      CodeGeneration.getResultType(attr.dataType)
+    })
+  }
+
   def init(
       condExpr: Expression,
       projectList: Seq[Expression],
@@ -316,21 +330,7 @@ object ColumnarConditionProjector extends Logging {
       Boolean) = {
     logInfo(
       s"originalInputAttributes is ${originalInputAttributes}, \nCondition is ${condExpr}, \nProjection is ${projectList}")
-    // datatype check
-    originalInputAttributes.toList.foreach(expr => {
-      val attr = ConverterUtils.getAttrFromExpr(expr)
-      if (attr.dataType.isInstanceOf[NullType] || attr.dataType.isInstanceOf[DecimalType])
-        throw new UnsupportedOperationException(s"Null type is not supported in ColumnarAggregation.")
-    })
-    if (projectList != null) {
-      projectList.toList.foreach(expr => {
-        expr.children.foreach(child => {
-          if (child.dataType.isInstanceOf[NullType] || child.dataType.isInstanceOf[DecimalType])
-            throw new UnsupportedOperationException(s"Null type is not supported in ColumnarAggregation.")
-        })
-      })
-    }
-
+    buildCheck(projectList, originalInputAttributes)
     val conditionInputList: java.util.List[Field] = Lists.newArrayList()
     val (condPrepareList, skip_filter) = if (condExpr != null) {
       val columnarCondExpr: Expression = ColumnarExpressionConverter

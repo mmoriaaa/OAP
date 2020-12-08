@@ -454,7 +454,7 @@ class FileSourceStrategySuite extends QueryTest with SharedSparkSession with Pre
     }
   }
 
-  ignore("[SPARK-16818] exchange reuse respects differences in partition pruning") {
+  test("[SPARK-16818] exchange reuse respects differences in partition pruning") {
     spark.conf.set(SQLConf.EXCHANGE_REUSE_ENABLED.key, true)
     withTempPath { path =>
       val tempDir = path.getCanonicalPath

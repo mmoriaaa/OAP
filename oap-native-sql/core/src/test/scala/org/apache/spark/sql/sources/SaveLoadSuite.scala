@@ -166,7 +166,7 @@ class SaveLoadSuite extends DataSourceTest with SharedSparkSession with BeforeAn
     }
   }
 
-  ignore("skip empty files in non bucketed read") {
+  test("skip empty files in non bucketed read") {
     Seq("csv", "text").foreach { format =>
       withTempDir { dir =>
         val path = dir.getCanonicalPath

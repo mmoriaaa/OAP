@@ -39,20 +39,8 @@ class ColumnarRound(child: Expression, scale: Expression, original: Expression)
     with ColumnarExpression
     with Logging {
 
-  def checkBuild(args: java.lang.Object): Unit = {
-    val (child_node, childType): (TreeNode, ArrowType) =
-      child.asInstanceOf[ColumnarExpression].doColumnarCodeGen(args)
-    var canBuild = false
-    childType match {
-      case float: ArrowType.FloatingPoint =>
-        if (float.getPrecision == FloatingPointPrecision.DOUBLE) {
-          canBuild = true
-        }
-      case _ =>
-    }
-    if (!canBuild) {
-      throw new UnsupportedOperationException(s"Type $childType is not supported in ColumnarRound")
-    }
+  if (child.dataType != DoubleType) {
+    throw new UnsupportedOperationException(s"${child.dataType} is not supported in ColumnarRound")
   }
 
   override def doColumnarCodeGen(args: java.lang.Object): (TreeNode, ArrowType) = {
@@ -72,10 +60,7 @@ object ColumnarRoundOperator {
 
   def create(child: Expression, scale: Expression, original: Expression): Expression = original match {
     case r: Round =>
-      val round = new ColumnarRound(child, scale, original)
-      val input: java.util.List[Field] = Lists.newArrayList()
-      round.checkBuild(input)
-      round
+      new ColumnarRound(child, scale, original)
     case other =>
       throw new UnsupportedOperationException(s"not currently supported: $other.")
   }

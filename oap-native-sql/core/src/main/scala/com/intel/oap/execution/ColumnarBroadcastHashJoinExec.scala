@@ -25,7 +25,7 @@ import com.intel.oap.vectorized._
 import com.intel.oap.ColumnarPluginConfig
 import org.apache.spark.TaskContext
 import org.apache.spark.rdd.RDD
-import org.apache.spark.util.{UserAddedJarUtils, Utils, ExecutorManager}
+import org.apache.spark.util.{ExecutorManager, UserAddedJarUtils, Utils}
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.codegen._
@@ -39,7 +39,7 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions.BoundReference
 import org.apache.spark.sql.catalyst.expressions.BindReferences._
 import org.apache.spark.sql.util.ArrowUtils
-import org.apache.spark.sql.vectorized.{ColumnarBatch, ColumnVector}
+import org.apache.spark.sql.vectorized.{ColumnVector, ColumnarBatch}
 
 import scala.collection.mutable.ListBuffer
 import org.apache.arrow.vector.ipc.message.ArrowFieldNode
@@ -55,6 +55,7 @@ import com.google.common.collect.Lists
 import com.intel.oap.expression._
 import com.intel.oap.vectorized.ExpressionEvaluator
 import org.apache.spark.sql.execution.datasources.v2.arrow.SparkMemoryUtils
+import org.apache.spark.sql.execution.exchange.BroadcastExchangeExec
 import org.apache.spark.sql.execution.joins.BroadcastHashJoinExec
 import org.apache.spark.sql.execution.joins.{BuildLeft, BuildRight, BuildSide, HashJoin}
 import org.apache.spark.sql.types.{StructField, StructType}
@@ -95,6 +96,30 @@ case class ColumnarBroadcastHashJoinExec(
       case BuildLeft => (lkeys, rkeys)
       case BuildRight => (rkeys, lkeys)
     }
+  }
+
+  // build check for BroadcastExchange
+  if (left.isInstanceOf[BroadcastExchangeExec] ||
+      right.isInstanceOf[BroadcastExchangeExec]) {
+    throw new UnsupportedOperationException(
+      s"exchange is BroadcastExchangeExec")
+  }
+  // build check for condition
+  val conditionExpr: Expression = condition.orNull
+  if (conditionExpr != null) {
+    ColumnarExpressionConverter.replaceWithColumnarExpression(conditionExpr)
+  }
+  // build check for res types
+  val streamInputAttributes: List[Attribute] = streamedPlan.output.toList
+  for (attr <- streamInputAttributes) {
+    CodeGeneration.getResultType(attr.dataType)
+  }
+  // build check for expr
+  for (expr <- buildKeyExprs) {
+    ColumnarExpressionConverter.replaceWithColumnarExpression(expr)
+  }
+  for (expr <- streamedKeyExprs) {
+    ColumnarExpressionConverter.replaceWithColumnarExpression(expr)
   }
 
   override def output: Seq[Attribute] =

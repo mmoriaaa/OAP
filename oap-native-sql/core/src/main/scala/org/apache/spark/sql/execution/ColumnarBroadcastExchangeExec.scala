@@ -54,6 +54,11 @@ class ColumnarBroadcastExchangeExec(mode: BroadcastMode, child: SparkPlan)
       throw new UnsupportedOperationException(
         s"ColumnarBroadcastExchange only support HashRelationMode")
   }
+  for (expr <- buildKeyExprs) {
+    ColumnarExpressionConverter.replaceWithColumnarExpression(expr)
+  }
+  ConverterUtils.toArrowSchema(output)
+
   @transient
   private lazy val promise = Promise[broadcast.Broadcast[Any]]()
 

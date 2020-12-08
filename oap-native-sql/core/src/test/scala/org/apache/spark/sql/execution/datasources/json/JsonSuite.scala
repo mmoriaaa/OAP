@@ -298,7 +298,7 @@ abstract class JsonSuite extends QueryTest with SharedSparkSession with TestJson
     }
   }
 
-  ignore("Complex field and type inferring") {
+  test("Complex field and type inferring") {
     withTempView("jsonTable") {
       val jsonDF = spark.read.json(complexFieldAndType1)
 
@@ -419,7 +419,7 @@ abstract class JsonSuite extends QueryTest with SharedSparkSession with TestJson
     }
   }
 
-  ignore("Type conflict in primitive field values") {
+  test("Type conflict in primitive field values") {
     withTempView("jsonTable") {
       val jsonDF = spark.read.json(primitiveFieldValueTypeConflict)
 
@@ -519,7 +519,7 @@ abstract class JsonSuite extends QueryTest with SharedSparkSession with TestJson
     }
   }
 
-  ignore("Type conflict in array elements") {
+  test("Type conflict in array elements") {
     withTempView("jsonTable") {
       val jsonDF = spark.read.json(arrayElementTypeConflict)
 
@@ -635,7 +635,7 @@ abstract class JsonSuite extends QueryTest with SharedSparkSession with TestJson
     }
   }
 
-  ignore("Loading a JSON dataset primitivesAsString returns complex fields as strings") {
+  test("Loading a JSON dataset primitivesAsString returns complex fields as strings") {
     withTempView("jsonTable") {
       val jsonDF = spark.read.option("primitivesAsString", "true").json(complexFieldAndType1)
 
@@ -1210,7 +1210,7 @@ abstract class JsonSuite extends QueryTest with SharedSparkSession with TestJson
     }
   }
 
-  ignore("SPARK-4228 DataFrame to JSON") {
+  test("SPARK-4228 DataFrame to JSON") {
     withTempView("applySchema1", "applySchema2", "primitiveTable", "complexTable") {
       val schema1 = StructType(
         StructField("f1", IntegerType, false) ::
@@ -2333,9 +2333,8 @@ abstract class JsonSuite extends QueryTest with SharedSparkSession with TestJson
     }
   }
 
-  /*
   def checkReadJson(lineSep: String, encoding: String, inferSchema: Boolean, id: Int): Unit = {
-    test(s"SPARK-23724: checks reading json in ${encoding} #${id}") {
+    ignore(s"SPARK-23724: checks reading json in ${encoding} #${id}") {
       val schema = new StructType().add("f1", StringType).add("f2", IntegerType)
       withTempPath { path =>
         val records = List(("a", 1), ("b", 2))
@@ -2379,7 +2378,6 @@ abstract class JsonSuite extends QueryTest with SharedSparkSession with TestJson
     case (testNum, sep, encoding, inferSchema) => checkReadJson(sep, encoding, inferSchema, testNum)
   }
   // scalastyle:on nonascii
-  */
 
   ignore("SPARK-23724: lineSep should be set if encoding if different from UTF-8") {
     val encoding = "UTF-16LE"
