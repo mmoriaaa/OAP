@@ -55,7 +55,7 @@ class DataFrameTungstenSuite extends QueryTest with SharedSparkSession {
     assert(df.select(struct("a", "b")).first().getStruct(0) === Row(1, 2))
   }
 
-  ignore("test struct type") {
+  test("test struct type") {
     val struct = Row(1, 2L, 3.0F, 3.0)
     val data = sparkContext.parallelize(Seq(Row(1, struct)))
 
@@ -72,7 +72,7 @@ class DataFrameTungstenSuite extends QueryTest with SharedSparkSession {
     assert(df.select("b").first() === Row(struct))
   }
 
-  ignore("test nested struct type") {
+  test("test nested struct type") {
     val innerStruct = Row(1, "abcd")
     val outerStruct = Row(1, 2L, 3.0F, 3.0, innerStruct, "efg")
     val data = sparkContext.parallelize(Seq(Row(1, outerStruct)))

@@ -141,7 +141,7 @@ class PartitionedWriteSuite extends QueryTest with SharedSparkSession {
     }
   }
 
-  ignore("timeZone setting in dynamic partition writes") {
+  test("timeZone setting in dynamic partition writes") {
     def checkPartitionValues(file: File, expected: String): Unit = {
       val dir = file.getParentFile()
       val value = ExternalCatalogUtils.unescapePathName(

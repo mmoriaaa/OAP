@@ -440,7 +440,7 @@ abstract class SQLViewSuite extends QueryTest with SQLTestUtils {
     assertNoSuchTable("ALTER VIEW default.testView AS SELECT 1, 2")
   }
 
-  ignore("ALTER VIEW AS should try to alter temp view first if view name has no database part") {
+  test("ALTER VIEW AS should try to alter temp view first if view name has no database part") {
     withView("test_view") {
       withTempView("test_view") {
         sql("CREATE VIEW test_view AS SELECT 1 AS a, 2 AS b")
@@ -457,7 +457,7 @@ abstract class SQLViewSuite extends QueryTest with SQLTestUtils {
     }
   }
 
-  ignore("ALTER VIEW AS should alter permanent view if view name has database part") {
+  test("ALTER VIEW AS should alter permanent view if view name has database part") {
     withView("test_view") {
       withTempView("test_view") {
         sql("CREATE VIEW test_view AS SELECT 1 AS a, 2 AS b")
@@ -474,7 +474,7 @@ abstract class SQLViewSuite extends QueryTest with SQLTestUtils {
     }
   }
 
-  ignore("ALTER VIEW AS should keep the previous table properties, comment, create_time, etc.") {
+  test("ALTER VIEW AS should keep the previous table properties, comment, create_time, etc.") {
     withView("test_view") {
       sql(
         """
@@ -519,7 +519,7 @@ abstract class SQLViewSuite extends QueryTest with SQLTestUtils {
     }
   }
 
-  ignore("create view for joined tables") {
+  test("create view for joined tables") {
     // make sure the new flag can handle some complex cases like join and schema change.
     withTable("jt1", "jt2") {
       spark.range(1, 10).toDF("id1").write.format("json").saveAsTable("jt1")
@@ -535,7 +535,7 @@ abstract class SQLViewSuite extends QueryTest with SQLTestUtils {
     }
   }
 
-  ignore("CTE within view") {
+  test("CTE within view") {
     withView("cte_view") {
       sql("CREATE VIEW cte_view AS WITH w AS (SELECT 1 AS n) SELECT n FROM w")
       checkAnswer(sql("SELECT * FROM cte_view"), Row(1))
@@ -598,7 +598,7 @@ abstract class SQLViewSuite extends QueryTest with SQLTestUtils {
     }
   }
 
-  ignore("correctly resolve a view in a self join") {
+  test("correctly resolve a view in a self join") {
     withView("testView") {
       sql("CREATE VIEW testView AS SELECT * FROM jt")
       checkAnswer(
@@ -636,7 +636,7 @@ abstract class SQLViewSuite extends QueryTest with SQLTestUtils {
     }
   }
 
-  ignore("resolve a view when the dataTypes of referenced table columns changed") {
+  test("resolve a view when the dataTypes of referenced table columns changed") {
     withTable("tab1") {
       spark.range(1, 10).selectExpr("id", "id + 1 id1").write.saveAsTable("tab1")
       withView("testView") {
@@ -731,7 +731,7 @@ abstract class SQLViewSuite extends QueryTest with SQLTestUtils {
     }
   }
 
-  ignore("sparkSession API view resolution with different default database") {
+  test("sparkSession API view resolution with different default database") {
     withDatabase("db2") {
       withView("v1") {
         withTable("t1") {

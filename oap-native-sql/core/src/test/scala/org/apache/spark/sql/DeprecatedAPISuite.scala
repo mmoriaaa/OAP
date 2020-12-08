@@ -68,7 +68,7 @@ class DeprecatedAPISuite extends QueryTest with SharedSparkSession {
     )
   }
 
-  ignore("functions.toDegrees") {
+  test("functions.toDegrees") {
     testOneToOneMathFunction(toDegrees, math.toDegrees)
     withView("t") {
       val df = Seq(0, 1, 1.5).toDF("a")
@@ -85,7 +85,7 @@ class DeprecatedAPISuite extends QueryTest with SharedSparkSession {
     }
   }
 
-  ignore("functions.toRadians") {
+  test("functions.toRadians") {
     testOneToOneMathFunction(toRadians, math.toRadians)
     withView("t") {
       val df = Seq(0, 1, 1.5).toDF("a")
@@ -102,7 +102,7 @@ class DeprecatedAPISuite extends QueryTest with SharedSparkSession {
     }
   }
 
-  ignore("functions.approxCountDistinct") {
+  test("functions.approxCountDistinct") {
     withView("t") {
       val df = Seq(0, 1, 2).toDF("a")
       df.createOrReplaceTempView("t")

@@ -1,11 +1,20 @@
 #!/bin/sh
 
 # This script is used to run native sql unit test
-# Usage: ./run_ut.sh
+# SPARK_HOME is required, Usage: ./run_ut.sh
 # Detailed test info is logged to oap-native-sql/tools/log-file.log
 
 cd ../../
-mvn test -pl oap-native-sql/core -am -DfailIfNoTests=false -Dmaven.test.failure.ignore=true &> oap-native-sql/tools/log-file.log
+
+spark_home=$(eval echo ${SPARK_HOME})
+if [ -z "${spark_home}" ]
+then
+  echo "SPARK_HOME is not set!"
+  exit 1
+else
+  echo "SPARK_HOME is $spark_home"
+fi
+mvn test -pl oap-native-sql/core -am -DfailIfNoTests=false -Dmaven.test.failure.ignore=true -DargLine="-Dspark.test.home=$spark_home" &> oap-native-sql/tools/log-file.log
 
 cd oap-native-sql/tools/
 tests_total=0

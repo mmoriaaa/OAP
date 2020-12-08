@@ -118,7 +118,7 @@ class DatasetCacheSuite extends QueryTest
     assert(ds2.storageLevel == StorageLevel.NONE, "The Dataset ds2 should not be cached.")
   }
 
-  ignore("persist and then groupBy columns asKey, map") {
+  test("persist and then groupBy columns asKey, map") {
     val ds = Seq(("a", 10), ("a", 20), ("b", 1), ("b", 2), ("c", 1)).toDS()
     val grouped = ds.groupByKey(_._1)
     val agged = grouped.mapGroups { (g, iter) => (g, iter.map(_._2).sum) }

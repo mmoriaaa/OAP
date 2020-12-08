@@ -234,7 +234,7 @@ class InsertSuite extends DataSourceTest with SharedSparkSession {
     )
   }
 
-  ignore("INSERT INTO TABLE with Comment in columns") {
+  test("INSERT INTO TABLE with Comment in columns") {
     val tabName = "tab1"
     withTable(tabName) {
       sql(
@@ -251,7 +251,7 @@ class InsertSuite extends DataSourceTest with SharedSparkSession {
     }
   }
 
-  ignore("INSERT INTO TABLE - complex type but different names") {
+  test("INSERT INTO TABLE - complex type but different names") {
     val tab1 = "tab1"
     val tab2 = "tab2"
     withTable(tab1, tab2) {
@@ -288,7 +288,7 @@ class InsertSuite extends DataSourceTest with SharedSparkSession {
       "INSERT OVERWRITE to a table while querying it should not be allowed.")
   }
 
-  ignore("SPARK-30112: it is allowed to write to a table while querying it for " +
+  test("SPARK-30112: it is allowed to write to a table while querying it for " +
     "dynamic partition overwrite.") {
     Seq(PartitionOverwriteMode.DYNAMIC.toString,
         PartitionOverwriteMode.STATIC.toString).foreach { mode =>
@@ -337,7 +337,7 @@ class InsertSuite extends DataSourceTest with SharedSparkSession {
     }
   }
 
-  ignore("Caching")  {
+  test("Caching")  {
     // write something to the jsonTable
     sql(
       s"""
@@ -443,7 +443,7 @@ class InsertSuite extends DataSourceTest with SharedSparkSession {
     }
   }
 
-  ignore("SPARK-21203 wrong results of insertion of Array of Struct") {
+  test("SPARK-21203 wrong results of insertion of Array of Struct") {
     val tabName = "tab1"
     withTable(tabName) {
       spark.sql(
@@ -573,7 +573,7 @@ class InsertSuite extends DataSourceTest with SharedSparkSession {
     }
   }
 
-  ignore("SPARK-20236: dynamic partition overwrite") {
+  test("SPARK-20236: dynamic partition overwrite") {
     withSQLConf(SQLConf.PARTITION_OVERWRITE_MODE.key -> PartitionOverwriteMode.DYNAMIC.toString) {
       withTable("t") {
         sql(
@@ -600,7 +600,7 @@ class InsertSuite extends DataSourceTest with SharedSparkSession {
     }
   }
 
-  ignore("SPARK-20236: dynamic partition overwrite with customer partition path") {
+  test("SPARK-20236: dynamic partition overwrite with customer partition path") {
     withSQLConf(SQLConf.PARTITION_OVERWRITE_MODE.key -> PartitionOverwriteMode.DYNAMIC.toString) {
       withTable("t") {
         sql(
@@ -631,7 +631,7 @@ class InsertSuite extends DataSourceTest with SharedSparkSession {
     }
   }
 
-  ignore("Throw exception on unsafe cast with strict casting policy") {
+  test("Throw exception on unsafe cast with strict casting policy") {
     withSQLConf(
       SQLConf.USE_V1_SOURCE_LIST.key -> "parquet",
       SQLConf.STORE_ASSIGNMENT_POLICY.key -> SQLConf.StoreAssignmentPolicy.STRICT.toString) {
@@ -814,7 +814,7 @@ class InsertSuite extends DataSourceTest with SharedSparkSession {
     }
   }
 
-  ignore("SPARK-24583 Wrong schema type in InsertIntoDataSourceCommand") {
+  test("SPARK-24583 Wrong schema type in InsertIntoDataSourceCommand") {
     withTable("test_table") {
       val schema = new StructType()
         .add("i", LongType, false)

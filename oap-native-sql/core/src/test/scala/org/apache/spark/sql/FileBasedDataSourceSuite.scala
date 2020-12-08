@@ -110,6 +110,7 @@ class FileBasedDataSourceSuite extends QueryTest
   // Only ORC/Parquet support this. `CSV` and `JSON` returns an empty schema.
   // `TEXT` data source always has a single column whose name is `value`.
   Seq("orc", "parquet").foreach { format =>
+    // ignored in maven test
     ignore(s"SPARK-15474 Write and read back non-empty schema with empty dataframe - $format") {
       withTempPath { file =>
         val path = file.getCanonicalPath
@@ -124,6 +125,7 @@ class FileBasedDataSourceSuite extends QueryTest
   }
 
   Seq("orc", "parquet").foreach { format =>
+    // ignored in maven test
     ignore(s"SPARK-23271 empty RDD when saved should write a metadata only file - $format") {
       withTempPath { outputPath =>
         val df = spark.emptyDataFrame.select(lit(1).as("i"))
@@ -507,7 +509,7 @@ class FileBasedDataSourceSuite extends QueryTest
     }
   }
 
-  ignore("SPARK-25237 compute correct input metrics in FileScanRDD") {
+  test("SPARK-25237 compute correct input metrics in FileScanRDD") {
     // TODO: Test CSV V2 as well after it implements [[SupportsReportStatistics]].
     withSQLConf(SQLConf.USE_V1_SOURCE_LIST.key -> "csv") {
       withTempPath { p =>

@@ -172,7 +172,7 @@ class UDFSuite extends QueryTest with SharedSparkSession {
     assert(sql("SELECT strLenScala('test', 1)").head().getInt(0) === 5)
   }
 
-  ignore("UDF in a WHERE") {
+  test("UDF in a WHERE") {
     withTempView("integerData") {
       spark.udf.register("oneArgFilter", (n: Int) => { n > 80 })
 
@@ -186,7 +186,7 @@ class UDFSuite extends QueryTest with SharedSparkSession {
     }
   }
 
-  ignore("UDF in a HAVING") {
+  test("UDF in a HAVING") {
     withTempView("groupData") {
       spark.udf.register("havingFilter", (n: Long) => { n > 5 })
 
@@ -226,7 +226,7 @@ class UDFSuite extends QueryTest with SharedSparkSession {
     }
   }
 
-  ignore("UDFs everywhere") {
+  test("UDFs everywhere") {
     withTempView("groupData") {
       spark.udf.register("groupFunction", (n: Int) => { n > 10 })
       spark.udf.register("havingFilter", (n: Long) => { n > 2000 })

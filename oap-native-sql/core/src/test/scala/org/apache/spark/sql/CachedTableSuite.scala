@@ -917,7 +917,7 @@ class CachedTableSuite extends QueryTest with SQLTestUtils
     assert(cachedData.collect === Seq(1001))
   }
 
-  ignore("SPARK-24596 Non-cascading Cache Invalidation - uncache temporary view") {
+  test("SPARK-24596 Non-cascading Cache Invalidation - uncache temporary view") {
     withTempView("t1", "t2") {
       sql("CACHE TABLE t1 AS SELECT * FROM testData WHERE key > 1")
       sql("CACHE TABLE t2 as SELECT * FROM t1 WHERE value > 1")
@@ -930,7 +930,7 @@ class CachedTableSuite extends QueryTest with SQLTestUtils
     }
   }
 
-  ignore("SPARK-24596 Non-cascading Cache Invalidation - drop temporary view") {
+  test("SPARK-24596 Non-cascading Cache Invalidation - drop temporary view") {
     withTempView("t1", "t2") {
       sql("CACHE TABLE t1 AS SELECT * FROM testData WHERE key > 1")
       sql("CACHE TABLE t2 as SELECT * FROM t1 WHERE value > 1")
@@ -1148,7 +1148,7 @@ class CachedTableSuite extends QueryTest with SQLTestUtils
     }
   }
 
-  ignore("cache supports for intervals") {
+  test("cache supports for intervals") {
     withTable("interval_cache") {
       Seq((1, "1 second"), (2, "2 seconds"), (2, null))
         .toDF("k", "v").write.saveAsTable("interval_cache")
@@ -1161,7 +1161,7 @@ class CachedTableSuite extends QueryTest with SQLTestUtils
     }
   }
 
-  ignore("SPARK-30494 Fix the leak of cached data when replace an existing view") {
+  test("SPARK-30494 Fix the leak of cached data when replace an existing view") {
     withTempView("tempView") {
       spark.catalog.clearCache()
       sql("create or replace temporary view tempView as select 1")

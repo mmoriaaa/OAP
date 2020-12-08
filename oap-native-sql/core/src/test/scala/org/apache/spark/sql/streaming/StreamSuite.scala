@@ -86,7 +86,7 @@ class StreamSuite extends StreamTest {
       CheckAnswer(2, 3, 4, 5, 6, 7))
   }
 
-  ignore("join") {
+  test("join") {
     // Make a table and ensure it will be broadcast.
     val smallTable = Seq((1, "one"), (2, "two"), (4, "four")).toDF("number", "word")
 
@@ -212,7 +212,7 @@ class StreamSuite extends StreamTest {
       CheckAnswer(1, 2, 3, 4, 5, 6, 7, 8))
   }
 
-  ignore("sql queries") {
+  test("sql queries") {
     withTempView("stream") {
       val inputData = MemoryStream[Int]
       inputData.toDF().createOrReplaceTempView("stream")
@@ -542,7 +542,7 @@ class StreamSuite extends StreamTest {
     }
   }
 
-  ignore("explain-continuous") {
+  test("explain-continuous") {
     val inputData = ContinuousMemoryStream[Int]
     val df = inputData.toDS().map(_ * 2).filter(_ > 5)
 
@@ -593,7 +593,7 @@ class StreamSuite extends StreamTest {
     }
   }
 
-  ignore("codegen-microbatch") {
+  test("codegen-microbatch") {
     val inputData = MemoryStream[Int]
     val df = inputData.toDS().map(_ * 2).filter(_ > 5)
 
@@ -618,7 +618,7 @@ class StreamSuite extends StreamTest {
     }
   }
 
-  ignore("codegen-continuous") {
+  test("codegen-continuous") {
     val inputData = ContinuousMemoryStream[Int]
     val df = inputData.toDS().map(_ * 2).filter(_ > 5)
 
@@ -971,7 +971,7 @@ class StreamSuite extends StreamTest {
       CheckAnswer(1 to 4: _*))
   }
 
-  ignore("streaming limit with other operators") {
+  test("streaming limit with other operators") {
     val inputData = MemoryStream[Int]
     testStream(inputData.toDF().where("value % 2 = 1").limit(4))(
       AddData(inputData, 1 to 5: _*),
@@ -1082,7 +1082,7 @@ class StreamSuite extends StreamTest {
         false))
   }
 
-  ignore("SPARK-30657: streaming limit should not apply on limits on state subplans") {
+  test("SPARK-30657: streaming limit should not apply on limits on state subplans") {
     val streanData = MemoryStream[Int]
     val streamingDF = streanData.toDF().toDF("value")
     val staticDF = spark.createDataset(Seq(1)).toDF("value").orderBy("value")
@@ -1093,7 +1093,7 @@ class StreamSuite extends StreamTest {
       CheckAnswer(Row(1), Row(1)))
   }
 
-  ignore("SPARK-30657: streaming limit optimization from StreamingLocalLimitExec to LocalLimitExec") {
+  test("SPARK-30657: streaming limit optimization from StreamingLocalLimitExec to LocalLimitExec") {
     val inputData = MemoryStream[Int]
     val inputDF = inputData.toDF()
 
