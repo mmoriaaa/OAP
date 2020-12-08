@@ -229,14 +229,34 @@ case class ColumnarPreOverrides(conf: SparkConf) extends Rule[SparkPlan] {
         }
 
         val left = if (originalLeft.isInstanceOf[BroadcastExchangeExec]) {
+          var newPlan = replaceWithColumnarPlan(originalLeft)
           val child = originalLeft.asInstanceOf[BroadcastExchangeExec]
-          new ColumnarBroadcastExchangeExec(child.mode, replaceWithColumnarPlan(child.child))
+          try {
+            val colExchange =
+              new ColumnarBroadcastExchangeExec(child.mode, replaceWithColumnarPlan(child.child))
+            newPlan = colExchange
+          } catch {
+            case e: UnsupportedOperationException =>
+              System.out.println(
+                s"Fall back to use BroadcastExchangeExec, error is ${e.getMessage()}")
+          }
+          newPlan
         } else {
           replaceWithColumnarPlan(originalLeft)
         }
         val right = if (originalRight.isInstanceOf[BroadcastExchangeExec]) {
+          var newPlan = replaceWithColumnarPlan(originalRight)
           val child = originalRight.asInstanceOf[BroadcastExchangeExec]
-          new ColumnarBroadcastExchangeExec(child.mode, replaceWithColumnarPlan(child.child))
+          try {
+            val colExchange =
+              new ColumnarBroadcastExchangeExec(child.mode, replaceWithColumnarPlan(child.child))
+            newPlan = colExchange
+          } catch {
+            case e: UnsupportedOperationException =>
+              System.out.println(
+                s"Fall back to use BroadcastExchangeExec, error is ${e.getMessage()}")
+          }
+          newPlan
         } else {
           replaceWithColumnarPlan(originalRight)
         }

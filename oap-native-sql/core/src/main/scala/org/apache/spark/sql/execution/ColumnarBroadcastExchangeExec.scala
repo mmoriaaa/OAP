@@ -45,6 +45,18 @@ class ColumnarBroadcastExchangeExec(mode: BroadcastMode, child: SparkPlan)
     "collectTime" -> SQLMetrics.createTimingMetric(sparkContext, "time to collect"),
     "buildTime" -> SQLMetrics.createTimingMetric(sparkContext, "time to build"),
     "broadcastTime" -> SQLMetrics.createTimingMetric(sparkContext, "time to broadcast"))
+
+  val buildKeyExprs: Seq[Expression] = mode match {
+    case hashRelationMode: HashedRelationBroadcastMode =>
+      hashRelationMode.key
+    case _ =>
+      throw new UnsupportedOperationException(
+        s"ColumnarBroadcastExchange only support HashRelationMode")
+  }
+  for (expr <- buildKeyExprs) {
+    ColumnarExpressionConverter.replaceWithColumnarExpression(expr)
+  }
+
   @transient
   private lazy val promise = Promise[broadcast.Broadcast[Any]]()
 

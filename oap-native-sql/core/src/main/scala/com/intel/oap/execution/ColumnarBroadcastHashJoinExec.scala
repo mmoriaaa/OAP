@@ -97,6 +97,17 @@ case class ColumnarBroadcastHashJoinExec(
     }
   }
 
+  // build check for condition
+  val conditionExpr: Expression = condition.orNull
+  if (conditionExpr != null) {
+      ColumnarExpressionConverter.replaceWithColumnarExpression(conditionExpr)
+  }
+  // build check for res types
+  val streamInputAttributes: List[Attribute] = streamedPlan.output.toList
+  for (attr <- streamInputAttributes) {
+    CodeGeneration.getResultType(attr.dataType)
+  }
+
   override def output: Seq[Attribute] =
     if (projectList == null) super.output else projectList.map(_.toAttribute)
   def getBuildPlan: SparkPlan = buildPlan

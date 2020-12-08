@@ -499,7 +499,7 @@ class DatasetSuite extends QueryTest
       Row(1, "a", 1) :: Row(1, "a", 1) :: Row(2, "b", 2) :: Nil)
   }
 
-  ignore("multi-level joinWith") {
+  test("multi-level joinWith") {
     val ds1 = Seq(("a", 1), ("b", 2)).toDS().as("a")
     val ds2 = Seq(("a", 1), ("b", 2)).toDS().as("b")
     val ds3 = Seq(("a", 1), ("b", 2)).toDS().as("c")

@@ -415,8 +415,16 @@ case class AdaptiveSparkPlanExec(
               }
             }
           }
-          val columnarExchange = new ColumnarBroadcastExchangeExec(b.mode, columnarExchangeChild)
-          BroadcastQueryStageExec(currentStageId, columnarExchange)
+          var exchange = optimizedPlanWithExchange
+          try {
+            val columnarExchange = new ColumnarBroadcastExchangeExec(b.mode, columnarExchangeChild)
+            exchange = columnarExchange
+          } catch {
+            case e: UnsupportedOperationException =>
+              System.out.println(
+                s"Fall back to use BroadcastExchangeExec, error is ${e.getMessage()}")
+          }
+          BroadcastQueryStageExec(currentStageId, exchange)
         } else {
           BroadcastQueryStageExec(currentStageId, optimizedPlanWithExchange)
         }

@@ -236,7 +236,7 @@ class AdaptiveQueryExecSuite
     }
   }
 
-  ignore("Scalar subquery in later stages") {
+  test("Scalar subquery in later stages") {
     withSQLConf(
         SQLConf.ADAPTIVE_EXECUTION_ENABLED.key -> "true",
         SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key -> "80") {
@@ -728,7 +728,7 @@ class AdaptiveQueryExecSuite
     }
   }
 
-  ignore("SPARK-30403: AQE should handle InSubquery") {
+  test("SPARK-30403: AQE should handle InSubquery") {
     withSQLConf(SQLConf.ADAPTIVE_EXECUTION_ENABLED.key -> "true") {
       runAdaptiveAndVerifyResult("SELECT * FROM testData LEFT OUTER join testData2" +
         " ON key = a  AND key NOT IN (select a from testData3) where value = '1'"

@@ -831,7 +831,7 @@ class JoinSuite extends QueryTest with SharedSparkSession with AdaptiveSparkPlan
     }
   }
 
-  ignore("outer broadcast hash join should not throw NPE") {
+  test("outer broadcast hash join should not throw NPE") {
     withTempView("v1", "v2") {
       withSQLConf(SQLConf.WHOLESTAGE_CODEGEN_ENABLED.key -> "true") {
         Seq(2 -> 2).toDF("x", "y").createTempView("v1")
