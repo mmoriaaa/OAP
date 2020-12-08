@@ -54,7 +54,7 @@ class DateFunctionsSuite extends QueryTest with SharedSparkSession {
       .set("spark.sql.columnar.sort.broadcastJoin", "true")
       .set("spark.oap.sql.columnar.preferColumnar", "true")
 
-  ignore("function current_date") {
+  test("function current_date") {
     val df1 = Seq((1, 2), (3, 1)).toDF("a", "b")
     val d0 = DateTimeUtils.millisToDays(System.currentTimeMillis())
     val d1 = DateTimeUtils.fromJavaDate(df1.select(current_date()).collect().head.getDate(0))
@@ -132,7 +132,7 @@ class DateFunctionsSuite extends QueryTest with SharedSparkSession {
     }
   }
 
-  ignore("year") {
+  test("year") {
     val df = Seq((d, sdfDate.format(d), ts)).toDF("a", "b", "c")
 
     checkAnswer(
@@ -310,7 +310,7 @@ class DateFunctionsSuite extends QueryTest with SharedSparkSession {
       Seq(Row(Date.valueOf("2015-05-31")), Row(Date.valueOf("2015-06-01"))))
   }
 
-  ignore("time_add") {
+  test("time_add") {
     val t1 = Timestamp.valueOf("2015-07-31 23:59:59")
     val t2 = Timestamp.valueOf("2015-12-31 00:00:00")
     val d1 = Date.valueOf("2015-07-31")
@@ -326,7 +326,7 @@ class DateFunctionsSuite extends QueryTest with SharedSparkSession {
         Row(Timestamp.valueOf("2016-03-02 00:00:02"))))
   }
 
-  ignore("time_sub") {
+  test("time_sub") {
     val t1 = Timestamp.valueOf("2015-10-01 00:00:01")
     val t2 = Timestamp.valueOf("2016-02-29 00:00:02")
     val d1 = Date.valueOf("2015-09-30")
@@ -589,7 +589,7 @@ class DateFunctionsSuite extends QueryTest with SharedSparkSession {
 
   private def secs(millis: Long): Long = TimeUnit.MILLISECONDS.toSeconds(millis)
 
-  ignore("unix_timestamp") {
+  test("unix_timestamp") {
     Seq("corrected", "legacy").foreach { legacyParserPolicy =>
       withSQLConf(SQLConf.LEGACY_TIME_PARSER_POLICY.key -> legacyParserPolicy) {
         val date1 = Date.valueOf("2015-07-24")
@@ -715,7 +715,7 @@ class DateFunctionsSuite extends QueryTest with SharedSparkSession {
   }
 
 
-  ignore("to_timestamp") {
+  test("to_timestamp") {
     Seq("legacy", "corrected").foreach { legacyParserPolicy =>
       withSQLConf(SQLConf.LEGACY_TIME_PARSER_POLICY.key -> legacyParserPolicy) {
         val date1 = Date.valueOf("2015-07-24")
@@ -811,7 +811,7 @@ class DateFunctionsSuite extends QueryTest with SharedSparkSession {
         Row(Timestamp.valueOf("2015-07-24 17:00:00"))))
   }
 
-  ignore("handling null field by date_part") {
+  test("handling null field by date_part") {
     val input = Seq(Date.valueOf("2019-09-20")).toDF("d")
     Seq("date_part(null, d)", "date_part(null, date'2019-09-20')").foreach { expr =>
       val df = input.selectExpr(expr)

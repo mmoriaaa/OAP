@@ -673,7 +673,7 @@ class DataSourceV2SQLSuite
     assert(t.isInstanceOf[V1Table], "V1 table wasn't returned as an unresolved table")
   }
 
-  ignore("CreateTableAsSelect: nullable schema") {
+  test("CreateTableAsSelect: nullable schema") {
     val basicCatalog = catalog("testcat").asTableCatalog
     val atomicCatalog = catalog("testcat_atomic").asTableCatalog
     val basicIdentifier = "testcat.table_name"
@@ -726,7 +726,7 @@ class DataSourceV2SQLSuite
     assert(catalog("testcat").asTableCatalog.tableExists(ident) === false)
   }
 
-  ignore("DropTable: table qualified with the session catalog name") {
+  test("DropTable: table qualified with the session catalog name") {
     val ident = Identifier.of(Array("default"), "tbl")
     sql("CREATE TABLE tbl USING json AS SELECT 1 AS i")
     assert(catalog("spark_catalog").asTableCatalog.tableExists(ident) === true)
@@ -1734,7 +1734,7 @@ class DataSourceV2SQLSuite
     assert(e.message.contains("REPLACE TABLE is only supported with v2 tables"))
   }
 
-  ignore("DeleteFrom: basic - delete all") {
+  test("DeleteFrom: basic - delete all") {
     val t = "testcat.ns1.ns2.tbl"
     withTable(t) {
       sql(s"CREATE TABLE $t (id bigint, data string, p int) USING foo PARTITIONED BY (id, p)")
@@ -2228,7 +2228,7 @@ class DataSourceV2SQLSuite
       "The namespace in session catalog must have exactly one name part: default.ns1.ns2.fun"))
   }
 
-  ignore("global temp view should not be masked by v2 catalog") {
+  test("global temp view should not be masked by v2 catalog") {
     val globalTempDB = spark.sessionState.conf.getConf(StaticSQLConf.GLOBAL_TEMP_DATABASE)
     spark.conf.set(s"spark.sql.catalog.$globalTempDB", classOf[InMemoryTableCatalog].getName)
 
@@ -2275,7 +2275,7 @@ class DataSourceV2SQLSuite
     }
   }
 
-  ignore("SPARK-30001: session catalog name can be specified in SQL statements") {
+  test("SPARK-30001: session catalog name can be specified in SQL statements") {
     // unset this config to use the default v2 session catalog.
     spark.conf.unset(V2_SESSION_CATALOG_IMPLEMENTATION.key)
 
@@ -2286,7 +2286,7 @@ class DataSourceV2SQLSuite
     }
   }
 
-  ignore("SPARK-30885: v1 table name should be fully qualified") {
+  test("SPARK-30885: v1 table name should be fully qualified") {
     def assertWrongTableIdent(): Unit = {
       withTable("t") {
         sql("CREATE TABLE t USING json AS SELECT 1 AS i")
@@ -2324,7 +2324,7 @@ class DataSourceV2SQLSuite
     assertWrongTableIdent()
   }
 
-  ignore("SPARK-30259: session catalog can be specified in CREATE TABLE AS SELECT command") {
+  test("SPARK-30259: session catalog can be specified in CREATE TABLE AS SELECT command") {
     withTable("tbl") {
       val ident = Identifier.of(Array("default"), "tbl")
       sql("CREATE TABLE spark_catalog.default.tbl USING json AS SELECT 1 AS i")

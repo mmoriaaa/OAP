@@ -458,7 +458,7 @@ abstract class OrcQueryTest extends OrcTest {
     }
   }
 
-  ignore("Support for pushing down filters for decimal types") {
+  test("Support for pushing down filters for decimal types") {
     withSQLConf(SQLConf.ORC_FILTER_PUSHDOWN_ENABLED.key -> "true") {
       val data = (0 until 10).map(i => Tuple1(BigDecimal.valueOf(i)))
       checkPredicatePushDown(spark.createDataFrame(data).toDF("a"), 10, "a == 2")
@@ -614,7 +614,7 @@ abstract class OrcQueryTest extends OrcTest {
     }
   }
 
-  ignore("SPARK-27160 Predicate pushdown correctness on DecimalType for ORC") {
+  test("SPARK-27160 Predicate pushdown correctness on DecimalType for ORC") {
     withTempPath { dir =>
       withSQLConf(SQLConf.ORC_FILTER_PUSHDOWN_ENABLED.key -> "true") {
         val path = dir.getCanonicalPath

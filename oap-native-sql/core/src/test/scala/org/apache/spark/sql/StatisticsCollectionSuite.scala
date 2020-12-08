@@ -193,7 +193,7 @@ class StatisticsCollectionSuite extends StatisticsCollectionTestBase with Shared
     }
   }
 
-  ignore("analyze column command - result verification") {
+  test("analyze column command - result verification") {
     // (data.head.productArity - 1) because the last column does not support stats collection.
     assert(stats.size == data.head.productArity - 1)
     val df = data.toDF(stats.keys.toSeq :+ "carray" : _*)
@@ -205,7 +205,7 @@ class StatisticsCollectionSuite extends StatisticsCollectionTestBase with Shared
     }
   }
 
-  ignore("column stats collection for null columns") {
+  test("column stats collection for null columns") {
     val dataTypes: Seq[(DataType, Int)] = Seq(
       BooleanType, ByteType, ShortType, IntegerType, LongType,
       DoubleType, FloatType, DecimalType.SYSTEM_DEFAULT,
@@ -267,7 +267,7 @@ class StatisticsCollectionSuite extends StatisticsCollectionTestBase with Shared
     }
   }
 
-  ignore("change stats after truncate command") {
+  test("change stats after truncate command") {
     val table = "change_stats_truncate_table"
     withTable(table) {
       spark.range(100).select($"id", $"id" % 5 as "value").write.saveAsTable(table)
@@ -285,7 +285,7 @@ class StatisticsCollectionSuite extends StatisticsCollectionTestBase with Shared
     }
   }
 
-  ignore("change stats after set location command") {
+  test("change stats after set location command") {
     val table = "change_stats_set_location_table"
     val tableLoc = new File(spark.sessionState.catalog.defaultTablePath(TableIdentifier(table)))
     Seq(false, true).foreach { autoUpdate =>
@@ -325,7 +325,7 @@ class StatisticsCollectionSuite extends StatisticsCollectionTestBase with Shared
     }
   }
 
-  ignore("change stats after insert command for datasource table") {
+  test("change stats after insert command for datasource table") {
     val table = "change_stats_insert_datasource_table"
     Seq(false, true).foreach { autoUpdate =>
       withSQLConf(SQLConf.AUTO_SIZE_UPDATE_ENABLED.key -> autoUpdate.toString) {
@@ -358,7 +358,7 @@ class StatisticsCollectionSuite extends StatisticsCollectionTestBase with Shared
     }
   }
 
-  ignore("auto gather stats after insert command") {
+  test("auto gather stats after insert command") {
     val table = "change_stats_insert_datasource_table"
     Seq(false, true).foreach { autoUpdate =>
       withSQLConf(SQLConf.AUTO_SIZE_UPDATE_ENABLED.key -> autoUpdate.toString) {
@@ -445,7 +445,7 @@ class StatisticsCollectionSuite extends StatisticsCollectionTestBase with Shared
     }
   }
 
-  ignore("Simple queries must be working, if CBO is turned on") {
+  test("Simple queries must be working, if CBO is turned on") {
     withSQLConf(SQLConf.CBO_ENABLED.key -> "true") {
       withTable("TBL1", "TBL") {
         import org.apache.spark.sql.functions._
@@ -473,7 +473,7 @@ class StatisticsCollectionSuite extends StatisticsCollectionTestBase with Shared
     }
   }
 
-  ignore("store and retrieve column stats in different time zones") {
+  test("store and retrieve column stats in different time zones") {
     val (start, end) = (0, TimeUnit.DAYS.toSeconds(2))
 
     def checkTimestampStats(
@@ -538,7 +538,7 @@ class StatisticsCollectionSuite extends StatisticsCollectionTestBase with Shared
     }
   }
 
-  ignore("analyzes column statistics in cached local temporary view") {
+  test("analyzes column statistics in cached local temporary view") {
     withTempView("tempView") {
       // Analyzes in a temporary view
       sql("CREATE TEMPORARY VIEW tempView AS SELECT * FROM range(1, 30)")
@@ -555,7 +555,7 @@ class StatisticsCollectionSuite extends StatisticsCollectionTestBase with Shared
     }
   }
 
-  ignore("analyzes column statistics in cached global temporary view") {
+  test("analyzes column statistics in cached global temporary view") {
     withGlobalTempView("gTempView") {
       val globalTempDB = spark.sharedState.globalTempViewManager.database
       val errMsg1 = intercept[NoSuchTableException] {
@@ -577,7 +577,7 @@ class StatisticsCollectionSuite extends StatisticsCollectionTestBase with Shared
     }
   }
 
-  ignore("analyzes column statistics in cached catalog view") {
+  test("analyzes column statistics in cached catalog view") {
     withTempDatabase { database =>
       sql(s"CREATE VIEW $database.v AS SELECT 1 c")
       sql(s"CACHE TABLE $database.v")
@@ -587,7 +587,7 @@ class StatisticsCollectionSuite extends StatisticsCollectionTestBase with Shared
     }
   }
 
-  ignore("analyzes table statistics in cached catalog view") {
+  test("analyzes table statistics in cached catalog view") {
     def getTableStats(tableName: String): Statistics = {
       spark.table(tableName).queryExecution.optimizedPlan.stats
     }
@@ -619,7 +619,7 @@ class StatisticsCollectionSuite extends StatisticsCollectionTestBase with Shared
     }
   }
 
-  ignore(s"CTAS should update statistics if ${SQLConf.AUTO_SIZE_UPDATE_ENABLED.key} is enabled") {
+  test(s"CTAS should update statistics if ${SQLConf.AUTO_SIZE_UPDATE_ENABLED.key} is enabled") {
     val tableName = "spark_27694"
     Seq(false, true).foreach { updateEnabled =>
       withSQLConf(SQLConf.AUTO_SIZE_UPDATE_ENABLED.key -> updateEnabled.toString) {

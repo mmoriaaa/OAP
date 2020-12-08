@@ -37,7 +37,7 @@ import org.apache.spark.sql.util.CaseInsensitiveStringMap
 abstract class V1ReadFallbackSuite extends QueryTest with SharedSparkSession {
   protected def baseTableScan(): DataFrame
 
-  ignore("full scan") {
+  test("full scan") {
     val df = baseTableScan()
     val v1Scan = df.queryExecution.executedPlan.collect {
       case s: RowDataSourceScanExec => s
@@ -46,7 +46,7 @@ abstract class V1ReadFallbackSuite extends QueryTest with SharedSparkSession {
     checkAnswer(df, Seq(Row(1, 10), Row(2, 20), Row(3, 30)))
   }
 
-  ignore("column pruning") {
+  test("column pruning") {
     val df = baseTableScan().select("i")
     val v1Scan = df.queryExecution.executedPlan.collect {
       case s: RowDataSourceScanExec => s
@@ -56,7 +56,7 @@ abstract class V1ReadFallbackSuite extends QueryTest with SharedSparkSession {
     checkAnswer(df, Seq(Row(1), Row(2), Row(3)))
   }
 
-  ignore("filter push down") {
+  test("filter push down") {
     val df = baseTableScan().filter("i > 1 and j < 30")
     val v1Scan = df.queryExecution.executedPlan.collect {
       case s: RowDataSourceScanExec => s
@@ -67,7 +67,7 @@ abstract class V1ReadFallbackSuite extends QueryTest with SharedSparkSession {
     checkAnswer(df, Seq(Row(2, 20)))
   }
 
-  ignore("filter push down + column pruning") {
+  test("filter push down + column pruning") {
     val df = baseTableScan().filter("i > 1").select("i")
     val v1Scan = df.queryExecution.executedPlan.collect {
       case s: RowDataSourceScanExec => s
@@ -107,22 +107,6 @@ class V1ReadFallbackWithDataFrameReaderSuite extends V1ReadFallbackSuite {
 class V1ReadFallbackWithCatalogSuite extends V1ReadFallbackSuite {
   override def beforeAll(): Unit = {
     super.beforeAll()
-
-    spark.conf.set("spark.sql.parquet.columnarReaderBatchSize", "4096")
-    spark.conf.set("spark.sql.sources.useV1SourceList", "avro")
-    spark.conf.set("spark.sql.extensions", "com.intel.oap.ColumnarPlugin")
-    spark.conf.set("spark.sql.execution.arrow.maxRecordsPerBatch", "4096")
-    //spark.conf.set("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
-    spark.conf.set("spark.memory.offHeap.enabled", "true")
-    spark.conf.set("spark.memory.offHeap.size", "10m")
-    spark.conf.set("spark.sql.join.preferSortMergeJoin", "false")
-    spark.conf.set("spark.sql.columnar.codegen.hashAggregate", "false")
-    spark.conf.set("spark.oap.sql.columnar.wholestagecodegen", "false")
-    spark.conf.set("spark.sql.columnar.window", "false")
-    spark.conf.set("spark.unsafe.exceptionOnMemoryLeak", "false")
-    //spark.conf.set("spark.sql.columnar.tmp_dir", "/codegen/nativesql/")
-    spark.conf.set("spark.sql.columnar.sort.broadcastJoin", "true")
-    spark.conf.set("spark.oap.sql.columnar.preferColumnar", "true")
     spark.conf.set("spark.sql.catalog.read_fallback", classOf[V1ReadFallbackCatalog].getName)
 
     sql("CREATE TABLE read_fallback.tbl(i int, j int) USING foo")

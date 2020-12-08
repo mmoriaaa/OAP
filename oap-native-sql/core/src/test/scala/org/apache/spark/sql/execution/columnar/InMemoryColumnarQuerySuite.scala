@@ -262,7 +262,7 @@ class InMemoryColumnarQuerySuite extends QueryTest with SharedSparkSession {
     }
   }
 
-  ignore("test different data types") {
+  test("test different data types") {
     // Create the schema.
     val struct =
       StructType(

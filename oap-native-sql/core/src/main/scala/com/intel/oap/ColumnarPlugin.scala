@@ -65,7 +65,7 @@ case class ColumnarPreOverrides(conf: SparkConf) extends Rule[SparkPlan] {
         newPlan = newColumnarPlan
       } catch {
         case e: UnsupportedOperationException =>
-          System.out.println(s"Fall back to use RowBased Filter and Project Exec")
+          System.out.println(s"Fall back to use RowBased Filter and Project Exec, error is ${e.getMessage()}")
       }
       if (newPlan == null) {
         if (columnarPlan.isInstanceOf[ColumnarConditionProjectExec]) {
@@ -81,7 +81,16 @@ case class ColumnarPreOverrides(conf: SparkConf) extends Rule[SparkPlan] {
       val child =
         if (nc == null) replaceWithColumnarPlan(plan.child) else nc(0)
       logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
-      new ColumnarConditionProjectExec(plan.condition, null, child)
+      var newPlan: SparkPlan = plan.withNewChildren(Seq(child))
+      try {
+        val columnarPlan =
+          new ColumnarConditionProjectExec(plan.condition, null, child)
+        newPlan = columnarPlan
+      } catch {
+        case e: UnsupportedOperationException =>
+          System.out.println(s"Fall back to use FilterExec, error is ${e.getMessage()}")
+      }
+      newPlan
     case plan: HashAggregateExec =>
       val children = Seq(if (nc == null) replaceWithColumnarPlan(plan.child) else nc(0))
       logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
@@ -111,7 +120,16 @@ case class ColumnarPreOverrides(conf: SparkConf) extends Rule[SparkPlan] {
       val children =
         if (nc == null) plan.children.map(replaceWithColumnarPlan(_)) else nc
       logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
-      new ColumnarExpandExec(plan.projections, plan.output, children(0))
+      var newPlan: SparkPlan = plan.withNewChildren(children)
+      try {
+        val columnarPlan =
+          new ColumnarExpandExec(plan.projections, plan.output, children(0))
+        newPlan = columnarPlan
+      } catch {
+        case e: UnsupportedOperationException =>
+          System.out.println(s"Fall back to use ExpandExec, error is ${e.getMessage()}")
+      }
+      newPlan
     case plan: SortExec =>
       if (columnarConf.enableColumnarSort) {
         val child =

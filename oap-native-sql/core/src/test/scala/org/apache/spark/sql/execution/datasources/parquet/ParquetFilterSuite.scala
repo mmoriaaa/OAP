@@ -758,7 +758,6 @@ abstract class ParquetFilterSuite extends QueryTest with ParquetTest with Shared
       }
     }
   }
-
   ignore("SPARK-12231: test the filter and empty project in partitioned DataSource scan") {
     import testImplicits._
 

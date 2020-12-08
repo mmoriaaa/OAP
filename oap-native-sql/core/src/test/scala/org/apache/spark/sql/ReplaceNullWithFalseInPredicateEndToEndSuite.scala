@@ -91,7 +91,7 @@ class ReplaceNullWithFalseInPredicateEndToEndSuite extends QueryTest with Shared
     }
   }
 
-  ignore("SPARK-26107: Replace Literal(null, _) with FalseLiteral in higher-order functions") {
+  test("SPARK-26107: Replace Literal(null, _) with FalseLiteral in higher-order functions") {
     def assertNoLiteralNullInPlan(df: DataFrame): Unit = {
       df.queryExecution.executedPlan.foreach { p =>
         assert(p.expressions.forall(_.find {

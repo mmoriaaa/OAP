@@ -292,11 +292,11 @@ object ColumnarSorter extends Logging {
   }
 
   def buildCheck(sortOrder: Seq[SortOrder]): Unit = synchronized {
+    val unsupportedTypes = List(NullType, TimestampType, BinaryType)
     for (sort <- sortOrder) {
       val keyType = ConverterUtils.getAttrFromExpr(sort.child).dataType
-      if (keyType.isInstanceOf[NullType] || keyType.isInstanceOf[TimestampType] ||
-        keyType.isInstanceOf[BinaryType] || keyType.isInstanceOf[DecimalType]) {
-        throw new UnsupportedOperationException(s"Type ${keyType} is not supported in ColumnarSorter.")
+      if (unsupportedTypes.indexOf(keyType) != -1 || keyType.isInstanceOf[DecimalType]) {
+        throw new UnsupportedOperationException(s"${keyType} is not supported in ColumnarSorter.")
       }
     }
   }

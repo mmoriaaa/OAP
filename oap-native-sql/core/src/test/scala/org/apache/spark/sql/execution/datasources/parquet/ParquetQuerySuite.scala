@@ -141,7 +141,7 @@ abstract class ParquetQuerySuite extends QueryTest with ParquetTest with SharedS
     }
   }
 
-  ignore("SPARK-10634 timestamp written and read as INT64 - truncation") {
+  test("SPARK-10634 timestamp written and read as INT64 - truncation") {
     withTable("ts") {
       sql("create table ts (c1 int, c2 timestamp) using parquet")
       sql("insert into ts values (1, timestamp'2016-01-01 10:11:12.123456')")
@@ -776,6 +776,7 @@ abstract class ParquetQuerySuite extends QueryTest with ParquetTest with SharedS
     }
   }
 
+  // ignored in maven test
   ignore("SPARK-24230: filter row group using dictionary") {
     withSQLConf(("parquet.filter.dictionary.enabled", "true")) {
       // create a table with values from 0, 2, ..., 18 that will be dictionary-encoded

@@ -286,7 +286,7 @@ abstract class OrcSuite extends OrcTest with BeforeAndAfterAll {
       (6 to 10).map(i => Row(i, s"part-$i")))
   }
 
-  ignore("write null values") {
+  test("write null values") {
     sql("DROP TABLE IF EXISTS orcNullValues")
 
     val df = sql(
