@@ -465,7 +465,7 @@ abstract class OrcQueryTest extends OrcTest {
     }
   }
 
-  ignore("Support for pushing down filters for timestamp types") {
+  test("Support for pushing down filters for timestamp types") {
     withSQLConf(SQLConf.ORC_FILTER_PUSHDOWN_ENABLED.key -> "true") {
       val timeString = "2015-08-20 14:57:00"
       val data = (0 until 10).map { i =>

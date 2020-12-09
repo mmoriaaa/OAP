@@ -549,7 +549,7 @@ class DataFrameAggregateSuite extends QueryTest
     )
   }
 
-  ignore("SPARK-31500: collect_set() of BinaryType returns duplicate elements") {
+  test("SPARK-31500: collect_set() of BinaryType returns duplicate elements") {
     val bytesTest1 = "test1".getBytes
     val bytesTest2 = "test2".getBytes
     val df = Seq(bytesTest1, bytesTest1, bytesTest2).toDF("a")

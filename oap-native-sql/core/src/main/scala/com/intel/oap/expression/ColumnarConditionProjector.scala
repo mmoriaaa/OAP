@@ -307,18 +307,11 @@ object ColumnarConditionProjector extends Logging {
   def buildCheck(projectList: Seq[Expression],
                  originalInputAttributes: Seq[Attribute]): Unit = {
     // check datatype
+    val unsupportedTypes = List(NullType, TimestampType, BinaryType)
     originalInputAttributes.toList.foreach(attr => {
-      if (attr.dataType.isInstanceOf[NullType] || attr.dataType.isInstanceOf[DecimalType])
+      if (unsupportedTypes.indexOf(attr.dataType) != -1 || attr.dataType.isInstanceOf[DecimalType])
         throw new UnsupportedOperationException(s"${attr.dataType} is not supported in ColumnarConditionProjector.")
     })
-    if (projectList != null) {
-      projectList.toList.foreach(expr => {
-        expr.children.foreach(child => {
-          if (child.dataType.isInstanceOf[NullType] || child.dataType.isInstanceOf[DecimalType])
-            throw new UnsupportedOperationException(s"${child.dataType} is not supported in ColumnarConditionProjector.")
-        })
-      })
-    }
     // check result type
     originalInputAttributes.toList.foreach(attr => {
       CodeGeneration.getResultType(attr.dataType)

@@ -209,7 +209,7 @@ class InMemoryColumnarQuerySuite extends QueryTest with SharedSparkSession {
       nullableRepeatedData.collect().toSeq.map(Row.fromTuple))
   }
 
-  ignore("SPARK-2729 regression: timestamp data type") {
+  test("SPARK-2729 regression: timestamp data type") {
     withTempView("timestamps") {
       val timestamps = (0 to 3).map(i => Tuple1(new Timestamp(i))).toDF("time")
       timestamps.createOrReplaceTempView("timestamps")

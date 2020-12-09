@@ -86,7 +86,7 @@ class DateFunctionsSuite extends QueryTest with SharedSparkSession {
   val d = new Date(sdf.parse("2015-04-08 13:10:15").getTime)
   val ts = new Timestamp(sdf.parse("2013-04-08 13:10:15").getTime)
 
-  ignore("timestamp comparison with date strings") {
+  test("timestamp comparison with date strings") {
     val df = Seq(
       (1, Timestamp.valueOf("2015-01-01 00:00:00")),
       (2, Timestamp.valueOf("2014-01-01 00:00:00"))).toDF("i", "t")
@@ -405,7 +405,7 @@ class DateFunctionsSuite extends QueryTest with SharedSparkSession {
     assert(message.contains("Fail to parse"))
   }
 
-  ignore("function to_date") {
+  test("function to_date") {
     val d1 = Date.valueOf("2015-07-22")
     val d2 = Date.valueOf("2015-07-01")
     val d3 = Date.valueOf("2014-12-31")

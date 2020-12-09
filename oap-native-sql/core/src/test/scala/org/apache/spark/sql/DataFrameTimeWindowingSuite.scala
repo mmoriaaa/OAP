@@ -218,7 +218,7 @@ class DataFrameTimeWindowingSuite extends QueryTest with SharedSparkSession {
       1, 2) // null columns are dropped
   }
 
-  ignore("time window joins") {
+  test("time window joins") {
     val df = Seq(
       ("2016-03-27 09:00:05", 1),
       ("2016-03-27 09:00:32", 2),

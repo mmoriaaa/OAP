@@ -302,7 +302,7 @@ class UserDefinedTypeSuite extends QueryTest with SharedSparkSession with Parque
     sql("SELECT doOtherUDF(doSubTypeUDF(42))")
   }
 
-  ignore("except on UDT") {
+  test("except on UDT") {
     checkAnswer(
       pointsRDD.except(pointsRDD2),
       Seq(Row(0.0, new TestUDT.MyDenseVector(Array(0.2, 2.0)))))

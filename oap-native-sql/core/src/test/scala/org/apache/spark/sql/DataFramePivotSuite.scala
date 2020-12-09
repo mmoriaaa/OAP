@@ -274,7 +274,7 @@ class DataFramePivotSuite extends QueryTest with SharedSparkSession {
       Row(null, Seq(null, 7), null) :: Row(1, null, Seq(1, 7)) :: Nil)
   }
 
-  ignore("pivot with timestamp and count should not print internal representation") {
+  test("pivot with timestamp and count should not print internal representation") {
     val ts = "2012-12-31 16:00:10.011"
     val tsWithZone = "2013-01-01 00:00:10.011"
 

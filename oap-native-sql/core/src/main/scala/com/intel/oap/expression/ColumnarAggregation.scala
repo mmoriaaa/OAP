@@ -557,23 +557,24 @@ object ColumnarAggregation {
                  originalInputAttributes: Seq[Attribute],
                  aggregateExpressions: Seq[AggregateExpression],
                  resultExpressions: Seq[NamedExpression]): Unit = {
-    // check datatype and projection of aggregate children function
+    // check datatype
+    val unsupportedTypes = List(NullType, TimestampType, BinaryType)
+    for (attr <- originalInputAttributes) {
+      if (unsupportedTypes.indexOf(attr.dataType) != -1 || attr.dataType.isInstanceOf[DecimalType]) {
+        throw new UnsupportedOperationException(
+          s"${attr.dataType} is not supported in ColumnarAggregation")
+      }
+    }
+    // check aggregate children function
     for (expr <- aggregateExpressions) {
       val internalExpressionList = expr.aggregateFunction.children
       ColumnarProjection.buildCheck(originalInputAttributes, internalExpressionList)
-      internalExpressionList.foreach(projectExpr => {
-        val attr = ConverterUtils.getResultAttrFromExpr(projectExpr, s"res")
-        if (attr.dataType.isInstanceOf[DecimalType]) {
-          throw new UnsupportedOperationException(s"Decimal type is not supported in ColumnarAggregation.")
-        }
-      })
     }
     // check project
     ColumnarProjection.buildCheck(originalInputAttributes, groupingExpressions)
     ColumnarProjection.buildCheck(originalInputAttributes, resultExpressions)
     // check aggregate expressions
     checkAggregate(aggregateExpressions)
-
   }
 
   def checkAggregate(aggregateExpressions: Seq[AggregateExpression]): Unit = {

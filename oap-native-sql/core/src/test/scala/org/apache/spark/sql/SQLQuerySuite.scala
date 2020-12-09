@@ -451,7 +451,7 @@ class SQLQuerySuite extends QueryTest with SharedSparkSession with AdaptiveSpark
       Row("st"))
   }
 
-  ignore("SPARK-3173 Timestamp support in the parser") {
+  test("SPARK-3173 Timestamp support in the parser") {
     withTempView("timestamps") {
       (0 to 3).map(i => Tuple1(new Timestamp(i))).toDF("time").createOrReplaceTempView("timestamps")
 
@@ -565,7 +565,7 @@ class SQLQuerySuite extends QueryTest with SharedSparkSession with AdaptiveSpark
       mapData.collect().sortBy(_.data(1)).reverse.map(Row.fromTuple).toSeq)
   }
 
-  ignore("external sorting") {
+  test("external sorting") {
     sortTest()
   }
 
@@ -3446,6 +3446,7 @@ class SQLQuerySuite extends QueryTest with SharedSparkSession with AdaptiveSpark
   }
 
   ignore("SPARK-31166: UNION map<null, null> and other maps should not fail") {
+    val df1 = sql("(SELECT map()) UNION ALL (SELECT map(1, 2))")
     checkAnswer(
       sql("(SELECT map()) UNION ALL (SELECT map(1, 2))"),
       Seq(Row(Map[Int, Int]()), Row(Map(1 -> 2))))

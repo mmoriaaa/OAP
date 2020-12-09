@@ -808,7 +808,7 @@ class DatasetSuite extends QueryTest
     assert(ds.toString == "[_1: int, _2: int]")
   }
 
-  ignore("Kryo encoder") {
+  test("Kryo encoder") {
     implicit val kryoEncoder = Encoders.kryo[KryoData]
     val ds = Seq(KryoData(1), KryoData(2)).toDS()
 
@@ -816,7 +816,7 @@ class DatasetSuite extends QueryTest
       Set((KryoData(1), 1L), (KryoData(2), 1L)))
   }
 
-  ignore("Kryo encoder self join") {
+  test("Kryo encoder self join") {
     implicit val kryoEncoder = Encoders.kryo[KryoData]
     val ds = Seq(KryoData(1), KryoData(2)).toDS()
     assert(ds.joinWith(ds, lit(true), "cross").collect().toSet ==
@@ -836,7 +836,7 @@ class DatasetSuite extends QueryTest
     assert(e.contains("cannot cast double to binary"))
   }
 
-  ignore("Java encoder") {
+  test("Java encoder") {
     implicit val kryoEncoder = Encoders.javaSerialization[JavaData]
     val ds = Seq(JavaData(1), JavaData(2)).toDS()
 
@@ -844,7 +844,7 @@ class DatasetSuite extends QueryTest
       Set((JavaData(1), 1L), (JavaData(2), 1L)))
   }
 
-  ignore("Java encoder self join") {
+  test("Java encoder self join") {
     implicit val kryoEncoder = Encoders.javaSerialization[JavaData]
     val ds = Seq(JavaData(1), JavaData(2)).toDS()
     assert(ds.joinWith(ds, lit(true), "cross").collect().toSet ==
@@ -1775,7 +1775,7 @@ class DatasetSuite extends QueryTest
       None, None, Some((3, 4)))
   }
 
-  ignore("SPARK-24762: joinWith on Option[Product]") {
+  test("SPARK-24762: joinWith on Option[Product]") {
     val ds1 = Seq(Some((1, 2)), Some((2, 3)), None).toDS().as("a")
     val ds2 = Seq(Some((1, 2)), Some((2, 3)), None).toDS().as("b")
     val joined = ds1.joinWith(ds2, $"a.value._1" === $"b.value._2", "inner")
