@@ -789,7 +789,7 @@ class DatasetSuite extends QueryTest
     checkAnswer(sampleDF.select(simpleUdf($"id")), List.fill(sampleDF.count.toInt)(Row(a)))
   }
 
-  ignore("SPARK-11436: we should rebind right encoder when join 2 datasets") {
+  test("SPARK-11436: we should rebind right encoder when join 2 datasets") {
     val ds1 = Seq("1", "2").toDS().as("a")
     val ds2 = Seq(2, 3).toDS().as("b")
 
@@ -1011,7 +1011,7 @@ class DatasetSuite extends QueryTest
     checkDataset(wideDF.map(_.getLong(0)), 0L until 10 : _*)
   }
 
-  ignore("SPARK-14838: estimating sizeInBytes in operators with ObjectProducer shouldn't fail") {
+  test("SPARK-14838: estimating sizeInBytes in operators with ObjectProducer shouldn't fail") {
     val dataset = Seq(
       (0, 3, 54f),
       (0, 4, 44f),
@@ -1215,7 +1215,7 @@ class DatasetSuite extends QueryTest
     checkDatasetUnorderly(ds1.except(ds1))
   }
 
-  ignore("SPARK-15441: Dataset outer join") {
+  test("SPARK-15441: Dataset outer join") {
     val left = Seq(ClassData("a", 1), ClassData("b", 2)).toDS().as("left")
     val right = Seq(ClassData("x", 2), ClassData("y", 3)).toDS().as("right")
     val joined = left.joinWith(right, $"left.b" === $"right.b", "left")

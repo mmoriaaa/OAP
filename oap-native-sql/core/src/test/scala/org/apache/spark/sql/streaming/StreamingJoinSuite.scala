@@ -343,7 +343,7 @@ class StreamingInnerJoinSuite extends StreamTest with StateStoreMetricsTest with
     assert(e.toString.contains("Stream-stream join without equality predicate is not supported"))
   }
 
-  ignore("stream stream self join") {
+  test("stream stream self join") {
     val input = MemoryStream[Int]
     val df = input.toDF
     val join =
@@ -555,7 +555,7 @@ class StreamingOuterJoinSuite extends StreamTest with StateStoreMetricsTest with
     (input1, input2, joined)
   }
 
-  ignore("left outer early state exclusion on left") {
+  test("left outer early state exclusion on left") {
     val (leftInput, df1) = setupStream("left", 2)
     val (rightInput, df2) = setupStream("right", 3)
     // Use different schemas to ensure the null row is being generated from the correct side.
@@ -584,7 +584,7 @@ class StreamingOuterJoinSuite extends StreamTest with StateStoreMetricsTest with
     )
   }
 
-  ignore("left outer early state exclusion on right") {
+  test("left outer early state exclusion on right") {
     val (leftInput, df1) = setupStream("left", 2)
     val (rightInput, df2) = setupStream("right", 3)
     // Use different schemas to ensure the null row is being generated from the correct side.
@@ -613,7 +613,7 @@ class StreamingOuterJoinSuite extends StreamTest with StateStoreMetricsTest with
     )
   }
 
-  ignore("right outer early state exclusion on left") {
+  test("right outer early state exclusion on left") {
     val (leftInput, df1) = setupStream("left", 2)
     val (rightInput, df2) = setupStream("right", 3)
     // Use different schemas to ensure the null row is being generated from the correct side.
@@ -642,7 +642,7 @@ class StreamingOuterJoinSuite extends StreamTest with StateStoreMetricsTest with
     )
   }
 
-  ignore("right outer early state exclusion on right") {
+  test("right outer early state exclusion on right") {
     val (leftInput, df1) = setupStream("left", 2)
     val (rightInput, df2) = setupStream("right", 3)
     // Use different schemas to ensure the null row is being generated from the correct side.
@@ -671,7 +671,7 @@ class StreamingOuterJoinSuite extends StreamTest with StateStoreMetricsTest with
     )
   }
 
-  ignore("windowed left outer join") {
+  test("windowed left outer join") {
     val (leftInput, rightInput, joined) = setupWindowedJoin("left_outer")
 
     testStream(joined)(
@@ -689,7 +689,7 @@ class StreamingOuterJoinSuite extends StreamTest with StateStoreMetricsTest with
     )
   }
 
-  ignore("windowed right outer join") {
+  test("windowed right outer join") {
     val (leftInput, rightInput, joined) = setupWindowedJoin("right_outer")
 
     testStream(joined)(
@@ -711,7 +711,7 @@ class StreamingOuterJoinSuite extends StreamTest with StateStoreMetricsTest with
     ("left_outer", Row(3, null, 5, null)),
     ("right_outer", Row(null, 2, null, 5))
   ).foreach { case (joinType: String, outerResult) =>
-    ignore(s"${joinType.replaceAllLiterally("_", " ")} with watermark range condition") {
+    test(s"${joinType.replaceAllLiterally("_", " ")} with watermark range condition") {
       import org.apache.spark.sql.functions._
 
       val leftInput = MemoryStream[(Int, Int)]
@@ -754,7 +754,7 @@ class StreamingOuterJoinSuite extends StreamTest with StateStoreMetricsTest with
 
   // When the join condition isn't true, the outer null rows must be generated, even if the join
   // keys themselves have a match.
-  ignore("left outer join with non-key condition violated") {
+  test("left outer join with non-key condition violated") {
     val (leftInput, simpleLeftDf) = setupStream("left", 2)
     val (rightInput, simpleRightDf) = setupStream("right", 3)
 
@@ -809,7 +809,7 @@ class StreamingOuterJoinSuite extends StreamTest with StateStoreMetricsTest with
     )
   }
 
-  ignore("SPARK-26187 self left outer join should not return outer nulls for already matched rows") {
+  test("SPARK-26187 self left outer join should not return outer nulls for already matched rows") {
     val inputStream = MemoryStream[(Int, Long)]
 
     val df = inputStream.toDS()
@@ -872,7 +872,7 @@ class StreamingOuterJoinSuite extends StreamTest with StateStoreMetricsTest with
     )
   }
 
-  ignore("SPARK-26187 self right outer join should not return outer nulls for already matched rows") {
+  test("SPARK-26187 self right outer join should not return outer nulls for already matched rows") {
     val inputStream = MemoryStream[(Int, Long)]
 
     val df = inputStream.toDS()
@@ -916,7 +916,7 @@ class StreamingOuterJoinSuite extends StreamTest with StateStoreMetricsTest with
     )
   }
 
-  ignore("SPARK-26187 restore the stream-stream outer join query from Spark 2.4") {
+  test("SPARK-26187 restore the stream-stream outer join query from Spark 2.4") {
     val inputStream = MemoryStream[(Int, Long)]
     val df = inputStream.toDS()
       .select(col("_1").as("value"), col("_2").cast("timestamp").as("timestamp"))
@@ -971,7 +971,7 @@ class StreamingOuterJoinSuite extends StreamTest with StateStoreMetricsTest with
       .contains("the query is using stream-stream outer join with state format version 1"))
   }
 
-  ignore("SPARK-29438: ensure UNION doesn't lead stream-stream join to use shifted partition IDs") {
+  test("SPARK-29438: ensure UNION doesn't lead stream-stream join to use shifted partition IDs") {
     def constructUnionDf(desiredPartitionsForInput1: Int)
         : (MemoryStream[Int], MemoryStream[Int], MemoryStream[Int], DataFrame) = {
       val input1 = MemoryStream[Int](desiredPartitionsForInput1)

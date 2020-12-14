@@ -56,6 +56,7 @@ class ColumnarBroadcastExchangeExec(mode: BroadcastMode, child: SparkPlan)
   for (expr <- buildKeyExprs) {
     ColumnarExpressionConverter.replaceWithColumnarExpression(expr)
   }
+  ConverterUtils.toArrowSchema(output)
 
   @transient
   private lazy val promise = Promise[broadcast.Broadcast[Any]]()

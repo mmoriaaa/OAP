@@ -41,7 +41,7 @@ class SortSuite extends SparkPlanTest with SharedSparkSession {
       .set("spark.sql.execution.arrow.maxRecordsPerBatch", "4096")
       //.set("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
       .set("spark.memory.offHeap.enabled", "true")
-      .set("spark.memory.offHeap.size", "10m")
+      .set("spark.memory.offHeap.size", "20m")
       .set("spark.sql.join.preferSortMergeJoin", "false")
       .set("spark.sql.columnar.codegen.hashAggregate", "false")
       .set("spark.oap.sql.columnar.wholestagecodegen", "false")
@@ -50,6 +50,8 @@ class SortSuite extends SparkPlanTest with SharedSparkSession {
       //.set("spark.sql.columnar.tmp_dir", "/codegen/nativesql/")
       .set("spark.sql.columnar.sort.broadcastJoin", "true")
       .set("spark.oap.sql.columnar.preferColumnar", "true")
+      .set("spark.sql.columnar.sort", "true")
+      .set("spark.sql.columnar.sort.NaNCheck", "true")
 
   test("basic sorting using ExternalSort") {
 
@@ -72,7 +74,7 @@ class SortSuite extends SparkPlanTest with SharedSparkSession {
       sortAnswers = false)
   }
 
-  ignore("sorting all nulls") {
+  test("sorting all nulls") {
     checkThatPlansAgree(
       (1 to 100).map(v => Tuple1(v)).toDF().selectExpr("NULL as a"),
       (child: SparkPlan) =>
@@ -94,7 +96,7 @@ class SortSuite extends SparkPlanTest with SharedSparkSession {
     )
   }
 
-  ignore("sorting does not crash for large inputs") {
+  test("sorting does not crash for large inputs") {
     val sortOrder = 'a.asc :: Nil
     val stringLength = 1024 * 1024 * 2
     checkThatPlansAgree(

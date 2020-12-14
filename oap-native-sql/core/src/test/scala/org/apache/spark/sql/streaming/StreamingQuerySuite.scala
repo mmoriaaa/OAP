@@ -490,7 +490,7 @@ class StreamingQuerySuite extends StreamTest with BeforeAndAfter with Logging wi
     assert(progress.sources(0).numInputRows === 20)
   }
 
-  ignore("input row calculation with mixed batch and streaming V1 sources") {
+  test("input row calculation with mixed batch and streaming V1 sources") {
     val streamingTriggerDF = spark.createDataset(1 to 10).toDF
     val streamingInputDF = createSingleTriggerStreamingDF(streamingTriggerDF).toDF("value")
     val staticInputDF = spark.createDataFrame(Seq(1 -> "1", 2 -> "2")).toDF("value", "anotherValue")
@@ -604,7 +604,7 @@ class StreamingQuerySuite extends StreamTest with BeforeAndAfter with Logging wi
     )
   }
 
-  ignore("input row calculation with mixed batch and streaming V2 sources") {
+  test("input row calculation with mixed batch and streaming V2 sources") {
 
     val streamInput = MemoryStream[Int]
     val staticInputDF = spark.createDataFrame(Seq(1 -> "1", 2 -> "2")).toDF("value", "anotherValue")
@@ -856,7 +856,7 @@ class StreamingQuerySuite extends StreamTest with BeforeAndAfter with Logging wi
     }
   }
 
-  ignore("SPARK-22238: don't check for RDD partitions during streaming aggregation preparation") {
+  test("SPARK-22238: don't check for RDD partitions during streaming aggregation preparation") {
     val stream = MemoryStream[(Int, Int)]
     val baseDf = Seq((1, "A"), (2, "b")).toDF("num", "char").where("char = 'A'")
     val otherDf = stream.toDF().toDF("num", "numSq")

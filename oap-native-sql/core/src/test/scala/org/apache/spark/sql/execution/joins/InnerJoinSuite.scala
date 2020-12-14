@@ -51,6 +51,7 @@ class InnerJoinSuite extends SparkPlanTest with SharedSparkSession {
       //.set("spark.sql.columnar.tmp_dir", "/codegen/nativesql/")
       .set("spark.sql.columnar.sort.broadcastJoin", "true")
       .set("spark.oap.sql.columnar.preferColumnar", "true")
+      .set("spark.oap.sql.columnar.hashCompare", "true")
 
   private lazy val myUpperCaseData = spark.createDataFrame(
     sparkContext.parallelize(Seq(
@@ -236,7 +237,6 @@ class InnerJoinSuite extends SparkPlanTest with SharedSparkSession {
     }
   }
 
-  /*
   testInnerJoin(
     "inner join, one match per row",
     myUpperCaseData,
@@ -308,5 +308,4 @@ class InnerJoinSuite extends SparkPlanTest with SharedSparkSession {
         (Row(1, 1), "L1", Row(1, 1), "R1"),
         (Row(2, 2), "L2", Row(2, 2), "R2")))
   }
-   */
 }

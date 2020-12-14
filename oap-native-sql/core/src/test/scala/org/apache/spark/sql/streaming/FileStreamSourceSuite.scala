@@ -550,7 +550,7 @@ class FileStreamSourceSuite extends FileStreamSourceTest {
     }
   }
 
-  ignore("read from textfile") {
+  test("read from textfile") {
     withTempDirs { case (src, tmp) =>
       val textStream = spark.readStream.textFile(src.getCanonicalPath)
       val filtered = textStream.filter(_.contains("keep"))

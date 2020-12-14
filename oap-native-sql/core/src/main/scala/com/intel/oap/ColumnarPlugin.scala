@@ -115,7 +115,15 @@ case class ColumnarPreOverrides(conf: SparkConf) extends Rule[SparkPlan] {
       val children =
         if (nc == null) plan.children.map(replaceWithColumnarPlan(_)) else nc
       logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
-      new ColumnarUnionExec(children)
+      var newPlan: SparkPlan = plan.withNewChildren(children)
+      try {
+        val columnarPlan = new ColumnarUnionExec(children)
+        newPlan = columnarPlan
+      } catch {
+        case e: UnsupportedOperationException =>
+          System.out.println(s"Fall back to use UnionExec, error is ${e.getMessage()}")
+      }
+      newPlan
     case plan: ExpandExec =>
       val children =
         if (nc == null) plan.children.map(replaceWithColumnarPlan(_)) else nc

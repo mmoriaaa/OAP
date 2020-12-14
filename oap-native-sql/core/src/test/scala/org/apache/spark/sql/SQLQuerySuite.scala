@@ -2747,7 +2747,7 @@ class SQLQuerySuite extends QueryTest with SharedSparkSession with AdaptiveSpark
     }
   }
 
-  ignore("SPARK-21247: Allow case-insensitive type equality in Set operation") {
+  test("SPARK-21247: Allow case-insensitive type equality in Set operation") {
     withSQLConf(SQLConf.CASE_SENSITIVE.key -> "false") {
       sql("SELECT struct(1 a) UNION ALL (SELECT struct(2 A))")
       sql("SELECT struct(1 a) EXCEPT (SELECT struct(2 A))")
@@ -3365,7 +3365,7 @@ class SQLQuerySuite extends QueryTest with SharedSparkSession with AdaptiveSpark
       Row(1, 0, 0) :: Row(2, 0, 0) :: Row(3, 0, 0) :: Nil)
   }
 
-  ignore("SPARK-29860: Fix dataType mismatch issue for InSubquery") {
+  test("SPARK-29860: Fix dataType mismatch issue for InSubquery") {
     withTempView("ta", "tb", "tc", "td", "te", "tf") {
       sql("CREATE TEMPORARY VIEW ta AS SELECT * FROM VALUES(CAST(1 AS DECIMAL(8, 0))) AS ta(id)")
       sql("CREATE TEMPORARY VIEW tb AS SELECT * FROM VALUES(CAST(1 AS DECIMAL(7, 2))) AS tb(id)")
@@ -3445,7 +3445,7 @@ class SQLQuerySuite extends QueryTest with SharedSparkSession with AdaptiveSpark
     checkAnswer(df2, Row(1) :: Nil)
   }
 
-  ignore("SPARK-31166: UNION map<null, null> and other maps should not fail") {
+  test("SPARK-31166: UNION map<null, null> and other maps should not fail") {
     val df1 = sql("(SELECT map()) UNION ALL (SELECT map(1, 2))")
     checkAnswer(
       sql("(SELECT map()) UNION ALL (SELECT map(1, 2))"),

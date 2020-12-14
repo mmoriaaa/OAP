@@ -642,7 +642,7 @@ class SubquerySuite extends QueryTest with SharedSparkSession with AdaptiveSpark
       Row(1) :: Row(1) :: Row(null) :: Row(null) :: Nil)
   }
 
-  ignore("SPARK-15370: COUNT bug with nasty predicate expr") {
+  test("SPARK-15370: COUNT bug with nasty predicate expr") {
     checkAnswer(
       sql("select l.a from l where " +
         "(select case when count(*) = 1 then null else count(*) end as cnt " +
@@ -691,7 +691,7 @@ class SubquerySuite extends QueryTest with SharedSparkSession with AdaptiveSpark
     }
   }
 
-  ignore("SPARK-17337: Incorrect column resolution leads to incorrect results") {
+  test("SPARK-17337: Incorrect column resolution leads to incorrect results") {
     withTempView("t1", "t2") {
       Seq(1, 2).toDF("c1").createOrReplaceTempView("t1")
       Seq(1).toDF("c2").createOrReplaceTempView("t2")
@@ -707,7 +707,7 @@ class SubquerySuite extends QueryTest with SharedSparkSession with AdaptiveSpark
      }
    }
 
-   ignore("SPARK-17348: Correlated subqueries with non-equality predicate (good case)") {
+   test("SPARK-17348: Correlated subqueries with non-equality predicate (good case)") {
      withTempView("t1", "t2") {
        Seq((1, 1)).toDF("c1", "c2").createOrReplaceTempView("t1")
        Seq((1, 1), (2, 0)).toDF("c1", "c2").createOrReplaceTempView("t2")
@@ -844,7 +844,7 @@ class SubquerySuite extends QueryTest with SharedSparkSession with AdaptiveSpark
   }
 
   // Generate operator
-  ignore("Correlated subqueries in LATERAL VIEW") {
+  test("Correlated subqueries in LATERAL VIEW") {
     withTempView("t1", "t2") {
       Seq((1, 1), (2, 0)).toDF("c1", "c2").createOrReplaceTempView("t1")
       Seq[(Int, Array[Int])]((1, Array(1, 2)), (2, Array(-1, -3)))
@@ -874,7 +874,7 @@ class SubquerySuite extends QueryTest with SharedSparkSession with AdaptiveSpark
     }
   }
 
-  ignore("SPARK-19933 Do not eliminate top-level aliases in sub-queries") {
+  test("SPARK-19933 Do not eliminate top-level aliases in sub-queries") {
     withTempView("t1", "t2") {
       spark.range(4).createOrReplaceTempView("t1")
       checkAnswer(
@@ -888,7 +888,7 @@ class SubquerySuite extends QueryTest with SharedSparkSession with AdaptiveSpark
     }
   }
 
-  ignore("ListQuery and Exists should work even no correlated references") {
+  test("ListQuery and Exists should work even no correlated references") {
     checkAnswer(
       sql("select * from l, r where l.a = r.c AND (r.d in (select d from r) OR l.a >= 1)"),
       Row(2, 1.0, 2, 3.0) :: Row(2, 1.0, 2, 3.0) :: Row(2, 1.0, 2, 3.0) ::
