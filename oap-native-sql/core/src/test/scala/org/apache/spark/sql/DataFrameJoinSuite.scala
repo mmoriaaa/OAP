@@ -165,7 +165,7 @@ class DataFrameJoinSuite extends QueryTest
     }
   }
 
-  test("broadcast join hint using Dataset.hint") {
+  ignore("broadcast join hint using Dataset.hint") {
     // make sure a giant join is not broadcastable
     val plan1 =
       spark.range(10e10.toLong)
@@ -348,7 +348,7 @@ class DataFrameJoinSuite extends QueryTest
     }
   }
 
-  test("Supports multi-part names for broadcast hint resolution") {
+  ignore("Supports multi-part names for broadcast hint resolution") {
     val (table1Name, table2Name) = ("t1", "t2")
 
     withTempDatabase { dbName =>
