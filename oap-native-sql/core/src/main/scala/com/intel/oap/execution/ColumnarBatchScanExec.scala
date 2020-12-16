@@ -27,8 +27,8 @@ import org.apache.spark.sql.vectorized.{ColumnarBatch, ColumnVector}
 
 class ColumnarBatchScanExec(output: Seq[AttributeReference], @transient scan: Scan)
     extends BatchScanExec(output, scan) {
-  val tmpDir = ColumnarPluginConfig.getConf(sparkContext.getConf).tmpFile
-  override def supportsColumnar(): Boolean = false
+  val tmpDir: String = ColumnarPluginConfig.getConf(sparkContext.getConf).tmpFile
+  override def supportsColumnar(): Boolean = true
   override lazy val metrics = Map(
     "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"),
     "numInputBatches" -> SQLMetrics.createMetric(sparkContext, "input_batches"),
@@ -52,9 +52,9 @@ class ColumnarBatchScanExec(output: Seq[AttributeReference], @transient scan: Sc
 
   override def canEqual(other: Any): Boolean = other.isInstanceOf[ColumnarBatchScanExec]
 
-//  override def equals(other: Any): Boolean = other match {
-//    case that: ColumnarBatchScanExec =>
-//      (that canEqual this) && super.equals(that)
-//    case _ => false
-//  }
+  override def equals(other: Any): Boolean = other match {
+    case that: ColumnarBatchScanExec =>
+      (that canEqual this) && super.equals(that)
+    case _ => false
+  }
 }

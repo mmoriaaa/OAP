@@ -56,6 +56,8 @@ class ColumnarPluginConfig(conf: SparkConf) {
     conf.getInt("spark.sql.columnar.sort.broadcast.cache.timeout", defaultValue = -1)
   val hashCompare: Boolean =
     conf.getBoolean("spark.oap.sql.columnar.hashCompare", defaultValue = false)
+  val isTesting: Boolean =
+    conf.getBoolean("spark.oap.sql.columnar.testing", defaultValue = false)
   val numaBindingInfo: ColumnarNumaBindingInfo = {
     val enableNumaBinding: Boolean =
       conf.getBoolean("spark.oap.sql.columnar.numaBinding", defaultValue = false)
