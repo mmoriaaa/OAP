@@ -39,9 +39,19 @@ case class ColumnarPreOverrides(conf: SparkConf) extends Rule[SparkPlan] {
       plan: SparkPlan,
       nc: Seq[SparkPlan] = null,
       parent: SparkPlan = null): SparkPlan = plan match {
-    case plan: BatchScanExec =>
-      logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
-      new ColumnarBatchScanExec(plan.output, plan.scan)
+//    case plan: BatchScanExec =>
+//      val children =
+//        if (nc == null) plan.children.map(replaceWithColumnarPlan(_)) else nc
+//      logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
+//      var newPlan: SparkPlan = plan.withNewChildren(children)
+//      try {
+//        val columnarPlan = new ColumnarBatchScanExec(plan.output, plan.scan)
+//        newPlan = columnarPlan
+//      } catch {
+//        case e: UnsupportedOperationException =>
+//          System.out.println(s"Fall back to use BatchScanExec, error is ${e.getMessage()}")
+//      }
+//      newPlan
     case plan: ProjectExec =>
       if (!columnarConf.enablePreferColumnar) {
         val (doConvert, child) = optimizeJoin(0, plan)
