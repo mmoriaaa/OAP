@@ -68,7 +68,6 @@ class CSVReadSchemaSuite
       .set("spark.sql.sources.useV1SourceList", "avro")
       .set("spark.sql.extensions", "com.intel.oap.ColumnarPlugin")
       .set("spark.sql.execution.arrow.maxRecordsPerBatch", "4096")
-      //.set("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
       .set("spark.memory.offHeap.enabled", "true")
       .set("spark.memory.offHeap.size", "10m")
       .set("spark.sql.join.preferSortMergeJoin", "false")
@@ -76,9 +75,9 @@ class CSVReadSchemaSuite
       .set("spark.oap.sql.columnar.wholestagecodegen", "false")
       .set("spark.sql.columnar.window", "false")
       .set("spark.unsafe.exceptionOnMemoryLeak", "false")
-      //.set("spark.sql.columnar.tmp_dir", "/codegen/nativesql/")
       .set("spark.sql.columnar.sort.broadcastJoin", "true")
       .set("spark.oap.sql.columnar.preferColumnar", "true")
+      .set("spark.oap.sql.columnar.testing", "true")
 }
 
 class HeaderCSVReadSchemaSuite
@@ -99,7 +98,6 @@ class HeaderCSVReadSchemaSuite
       .set("spark.sql.sources.useV1SourceList", "avro")
       .set("spark.sql.extensions", "com.intel.oap.ColumnarPlugin")
       .set("spark.sql.execution.arrow.maxRecordsPerBatch", "4096")
-      //.set("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
       .set("spark.memory.offHeap.enabled", "true")
       .set("spark.memory.offHeap.size", "10m")
       .set("spark.sql.join.preferSortMergeJoin", "false")
@@ -107,9 +105,9 @@ class HeaderCSVReadSchemaSuite
       .set("spark.oap.sql.columnar.wholestagecodegen", "false")
       .set("spark.sql.columnar.window", "false")
       .set("spark.unsafe.exceptionOnMemoryLeak", "false")
-      //.set("spark.sql.columnar.tmp_dir", "/codegen/nativesql/")
       .set("spark.sql.columnar.sort.broadcastJoin", "true")
       .set("spark.oap.sql.columnar.preferColumnar", "true")
+      .set("spark.oap.sql.columnar.testing", "true")
 }
 
 class JsonReadSchemaSuite
@@ -133,7 +131,6 @@ class JsonReadSchemaSuite
       .set("spark.sql.sources.useV1SourceList", "avro")
       .set("spark.sql.extensions", "com.intel.oap.ColumnarPlugin")
       .set("spark.sql.execution.arrow.maxRecordsPerBatch", "4096")
-      //.set("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
       .set("spark.memory.offHeap.enabled", "true")
       .set("spark.memory.offHeap.size", "10m")
       .set("spark.sql.join.preferSortMergeJoin", "false")
@@ -141,9 +138,9 @@ class JsonReadSchemaSuite
       .set("spark.oap.sql.columnar.wholestagecodegen", "false")
       .set("spark.sql.columnar.window", "false")
       .set("spark.unsafe.exceptionOnMemoryLeak", "false")
-      //.set("spark.sql.columnar.tmp_dir", "/codegen/nativesql/")
       .set("spark.sql.columnar.sort.broadcastJoin", "true")
       .set("spark.oap.sql.columnar.preferColumnar", "true")
+      .set("spark.oap.sql.columnar.testing", "true")
 }
 
 class OrcReadSchemaSuite
@@ -163,7 +160,6 @@ class OrcReadSchemaSuite
       .set("spark.sql.sources.useV1SourceList", "avro")
       .set("spark.sql.extensions", "com.intel.oap.ColumnarPlugin")
       .set("spark.sql.execution.arrow.maxRecordsPerBatch", "4096")
-      //.set("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
       .set("spark.memory.offHeap.enabled", "true")
       .set("spark.memory.offHeap.size", "10m")
       .set("spark.sql.join.preferSortMergeJoin", "false")
@@ -171,9 +167,9 @@ class OrcReadSchemaSuite
       .set("spark.oap.sql.columnar.wholestagecodegen", "false")
       .set("spark.sql.columnar.window", "false")
       .set("spark.unsafe.exceptionOnMemoryLeak", "false")
-      //.set("spark.sql.columnar.tmp_dir", "/codegen/nativesql/")
       .set("spark.sql.columnar.sort.broadcastJoin", "true")
       .set("spark.oap.sql.columnar.preferColumnar", "true")
+      .set("spark.oap.sql.columnar.testing", "true")
 
   override def beforeAll(): Unit = {
     super.beforeAll()
@@ -206,7 +202,6 @@ class VectorizedOrcReadSchemaSuite
       .set("spark.sql.sources.useV1SourceList", "avro")
       .set("spark.sql.extensions", "com.intel.oap.ColumnarPlugin")
       .set("spark.sql.execution.arrow.maxRecordsPerBatch", "4096")
-      //.set("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
       .set("spark.memory.offHeap.enabled", "true")
       .set("spark.memory.offHeap.size", "10m")
       .set("spark.sql.join.preferSortMergeJoin", "false")
@@ -214,10 +209,9 @@ class VectorizedOrcReadSchemaSuite
       .set("spark.oap.sql.columnar.wholestagecodegen", "false")
       .set("spark.sql.columnar.window", "false")
       .set("spark.unsafe.exceptionOnMemoryLeak", "false")
-      //.set("spark.sql.columnar.tmp_dir", "/codegen/nativesql/")
       .set("spark.sql.columnar.sort.broadcastJoin", "true")
       .set("spark.oap.sql.columnar.preferColumnar", "true")
-
+      .set("spark.oap.sql.columnar.testing", "true")
 
   override def beforeAll(): Unit = {
     super.beforeAll()
@@ -251,7 +245,6 @@ class MergedOrcReadSchemaSuite
       .set("spark.sql.sources.useV1SourceList", "avro")
       .set("spark.sql.extensions", "com.intel.oap.ColumnarPlugin")
       .set("spark.sql.execution.arrow.maxRecordsPerBatch", "4096")
-      //.set("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
       .set("spark.memory.offHeap.enabled", "true")
       .set("spark.memory.offHeap.size", "10m")
       .set("spark.sql.join.preferSortMergeJoin", "false")
@@ -259,9 +252,9 @@ class MergedOrcReadSchemaSuite
       .set("spark.oap.sql.columnar.wholestagecodegen", "false")
       .set("spark.sql.columnar.window", "false")
       .set("spark.unsafe.exceptionOnMemoryLeak", "false")
-      //.set("spark.sql.columnar.tmp_dir", "/codegen/nativesql/")
       .set("spark.sql.columnar.sort.broadcastJoin", "true")
       .set("spark.oap.sql.columnar.preferColumnar", "true")
+      .set("spark.oap.sql.columnar.testing", "true")
       .set(SQLConf.ORC_SCHEMA_MERGING_ENABLED.key, "true")
 }
 
@@ -281,7 +274,6 @@ class ParquetReadSchemaSuite
       .set("spark.sql.sources.useV1SourceList", "avro")
       .set("spark.sql.extensions", "com.intel.oap.ColumnarPlugin")
       .set("spark.sql.execution.arrow.maxRecordsPerBatch", "4096")
-      //.set("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
       .set("spark.memory.offHeap.enabled", "true")
       .set("spark.memory.offHeap.size", "10m")
       .set("spark.sql.join.preferSortMergeJoin", "false")
@@ -289,9 +281,9 @@ class ParquetReadSchemaSuite
       .set("spark.oap.sql.columnar.wholestagecodegen", "false")
       .set("spark.sql.columnar.window", "false")
       .set("spark.unsafe.exceptionOnMemoryLeak", "false")
-      //.set("spark.sql.columnar.tmp_dir", "/codegen/nativesql/")
       .set("spark.sql.columnar.sort.broadcastJoin", "true")
       .set("spark.oap.sql.columnar.preferColumnar", "true")
+      .set("spark.oap.sql.columnar.testing", "true")
 
   override def beforeAll(): Unit = {
     super.beforeAll()
@@ -322,7 +314,6 @@ class VectorizedParquetReadSchemaSuite
       .set("spark.sql.sources.useV1SourceList", "avro")
       .set("spark.sql.extensions", "com.intel.oap.ColumnarPlugin")
       .set("spark.sql.execution.arrow.maxRecordsPerBatch", "4096")
-      //.set("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
       .set("spark.memory.offHeap.enabled", "true")
       .set("spark.memory.offHeap.size", "10m")
       .set("spark.sql.join.preferSortMergeJoin", "false")
@@ -330,9 +321,9 @@ class VectorizedParquetReadSchemaSuite
       .set("spark.oap.sql.columnar.wholestagecodegen", "false")
       .set("spark.sql.columnar.window", "false")
       .set("spark.unsafe.exceptionOnMemoryLeak", "false")
-      //.set("spark.sql.columnar.tmp_dir", "/codegen/nativesql/")
       .set("spark.sql.columnar.sort.broadcastJoin", "true")
       .set("spark.oap.sql.columnar.preferColumnar", "true")
+      .set("spark.oap.sql.columnar.testing", "true")
 
   override def beforeAll(): Unit = {
     super.beforeAll()
@@ -363,7 +354,6 @@ class MergedParquetReadSchemaSuite
       .set("spark.sql.sources.useV1SourceList", "avro")
       .set("spark.sql.extensions", "com.intel.oap.ColumnarPlugin")
       .set("spark.sql.execution.arrow.maxRecordsPerBatch", "4096")
-      //.set("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
       .set("spark.memory.offHeap.enabled", "true")
       .set("spark.memory.offHeap.size", "10m")
       .set("spark.sql.join.preferSortMergeJoin", "false")
@@ -371,9 +361,9 @@ class MergedParquetReadSchemaSuite
       .set("spark.oap.sql.columnar.wholestagecodegen", "false")
       .set("spark.sql.columnar.window", "false")
       .set("spark.unsafe.exceptionOnMemoryLeak", "false")
-      //.set("spark.sql.columnar.tmp_dir", "/codegen/nativesql/")
       .set("spark.sql.columnar.sort.broadcastJoin", "true")
       .set("spark.oap.sql.columnar.preferColumnar", "true")
+      .set("spark.oap.sql.columnar.testing", "true")
 
   override def beforeAll(): Unit = {
     super.beforeAll()

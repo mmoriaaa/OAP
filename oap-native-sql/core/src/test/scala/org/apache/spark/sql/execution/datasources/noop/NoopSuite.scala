@@ -30,7 +30,6 @@ class NoopSuite extends SharedSparkSession {
       .set("spark.sql.sources.useV1SourceList", "avro")
       .set("spark.sql.extensions", "com.intel.oap.ColumnarPlugin")
       .set("spark.sql.execution.arrow.maxRecordsPerBatch", "4096")
-      //.set("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
       .set("spark.memory.offHeap.enabled", "true")
       .set("spark.memory.offHeap.size", "10m")
       .set("spark.sql.join.preferSortMergeJoin", "false")
@@ -38,9 +37,9 @@ class NoopSuite extends SharedSparkSession {
       .set("spark.oap.sql.columnar.wholestagecodegen", "false")
       .set("spark.sql.columnar.window", "false")
       .set("spark.unsafe.exceptionOnMemoryLeak", "false")
-      //.set("spark.sql.columnar.tmp_dir", "/codegen/nativesql/")
       .set("spark.sql.columnar.sort.broadcastJoin", "true")
       .set("spark.oap.sql.columnar.preferColumnar", "true")
+      .set("spark.oap.sql.columnar.testing", "true")
 
   test("materialisation of all rows") {
     val numElems = 10
@@ -57,7 +56,7 @@ class NoopSuite extends SharedSparkSession {
     assert(accum.value == numElems)
   }
 
-  ignore("read partitioned data") {
+  test("read partitioned data") {
     val numElems = 100
     withTempPath { dir =>
       val path = dir.getCanonicalPath

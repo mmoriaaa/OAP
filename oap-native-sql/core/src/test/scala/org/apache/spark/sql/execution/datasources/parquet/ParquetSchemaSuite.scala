@@ -127,7 +127,6 @@ class ParquetSchemaInferenceSuite extends ParquetSchemaTest {
       .set("spark.sql.sources.useV1SourceList", "avro")
       .set("spark.sql.extensions", "com.intel.oap.ColumnarPlugin")
       .set("spark.sql.execution.arrow.maxRecordsPerBatch", "4096")
-      //.set("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
       .set("spark.memory.offHeap.enabled", "true")
       .set("spark.memory.offHeap.size", "10m")
       .set("spark.sql.join.preferSortMergeJoin", "false")
@@ -135,9 +134,9 @@ class ParquetSchemaInferenceSuite extends ParquetSchemaTest {
       .set("spark.oap.sql.columnar.wholestagecodegen", "false")
       .set("spark.sql.columnar.window", "false")
       .set("spark.unsafe.exceptionOnMemoryLeak", "false")
-      //.set("spark.sql.columnar.tmp_dir", "/codegen/nativesql/")
       .set("spark.sql.columnar.sort.broadcastJoin", "true")
       .set("spark.oap.sql.columnar.preferColumnar", "true")
+      .set("spark.oap.sql.columnar.testing", "true")
 
   testSchemaInference[(Boolean, Int, Long, Float, Double, Array[Byte])](
     "basic types",
@@ -375,7 +374,6 @@ class ParquetSchemaSuite extends ParquetSchemaTest {
       .set("spark.sql.sources.useV1SourceList", "avro")
       .set("spark.sql.extensions", "com.intel.oap.ColumnarPlugin")
       .set("spark.sql.execution.arrow.maxRecordsPerBatch", "4096")
-      //.set("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
       .set("spark.memory.offHeap.enabled", "true")
       .set("spark.memory.offHeap.size", "10m")
       .set("spark.sql.join.preferSortMergeJoin", "false")
@@ -383,9 +381,9 @@ class ParquetSchemaSuite extends ParquetSchemaTest {
       .set("spark.oap.sql.columnar.wholestagecodegen", "false")
       .set("spark.sql.columnar.window", "false")
       .set("spark.unsafe.exceptionOnMemoryLeak", "false")
-      //.set("spark.sql.columnar.tmp_dir", "/codegen/nativesql/")
       .set("spark.sql.columnar.sort.broadcastJoin", "true")
       .set("spark.oap.sql.columnar.preferColumnar", "true")
+      .set("spark.oap.sql.columnar.testing", "true")
 
   test("DataType string parser compatibility") {
     // This is the generated string from previous versions of the Spark SQL, using the following:
@@ -444,6 +442,7 @@ class ParquetSchemaSuite extends ParquetSchemaTest {
     e
   }
 
+  // ignored in maven test
   ignore("schema mismatch failure error message for parquet reader") {
     withTempPath { dir =>
       val e = testSchemaMismatch(dir.getCanonicalPath, vectorizedReaderEnabled = false)
@@ -456,7 +455,7 @@ class ParquetSchemaSuite extends ParquetSchemaTest {
     }
   }
 
-  ignore("schema mismatch failure error message for parquet vectorized reader") {
+  test("schema mismatch failure error message for parquet vectorized reader") {
     withTempPath { dir =>
       val e = testSchemaMismatch(dir.getCanonicalPath, vectorizedReaderEnabled = true)
       assert(e.getCause.isInstanceOf[QueryExecutionException])

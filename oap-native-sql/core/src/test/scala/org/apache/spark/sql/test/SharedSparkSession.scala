@@ -65,7 +65,7 @@ trait SharedSparkSessionBase
   protected def sparkConf = {
     val conf = new SparkConf()
       .set("spark.hadoop.fs.file.impl", classOf[DebugFilesystem].getName)
-      .set(UNSAFE_EXCEPTION_ON_MEMORY_LEAK, true)
+      .set(UNSAFE_EXCEPTION_ON_MEMORY_LEAK, false)
       .set(SQLConf.CODEGEN_FALLBACK.key, "false")
       // Disable ConvertToLocalRelation for better test coverage. Test cases built on
       // LocalRelation will exercise the optimization rules better by disabling it as

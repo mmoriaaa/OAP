@@ -150,7 +150,6 @@ class DataFrameReaderWriterSuite extends QueryTest with SharedSparkSession with 
       .set("spark.sql.sources.useV1SourceList", "avro")
       .set("spark.sql.extensions", "com.intel.oap.ColumnarPlugin")
       .set("spark.sql.execution.arrow.maxRecordsPerBatch", "4096")
-      //.set("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
       .set("spark.memory.offHeap.enabled", "true")
       .set("spark.memory.offHeap.size", "10m")
       .set("spark.sql.join.preferSortMergeJoin", "false")
@@ -158,9 +157,12 @@ class DataFrameReaderWriterSuite extends QueryTest with SharedSparkSession with 
       .set("spark.oap.sql.columnar.wholestagecodegen", "false")
       .set("spark.sql.columnar.window", "false")
       .set("spark.unsafe.exceptionOnMemoryLeak", "false")
-      //.set("spark.sql.columnar.tmp_dir", "/codegen/nativesql/")
       .set("spark.sql.columnar.sort.broadcastJoin", "true")
       .set("spark.oap.sql.columnar.preferColumnar", "true")
+      .set("spark.sql.parquet.enableVectorizedReader", "false")
+      .set("spark.sql.orc.enableVectorizedReader", "false")
+      .set("spark.sql.inMemoryColumnarStorage.enableVectorizedReader", "false")
+      .set("spark.oap.sql.columnar.testing", "true")
 
   private val userSchema = new StructType().add("s", StringType)
   private val userSchemaString = "s STRING"
@@ -529,7 +531,7 @@ class DataFrameReaderWriterSuite extends QueryTest with SharedSparkSession with 
     assert(dfReader.schema(inputSchema).load().count() == 10)
   }
 
-  ignore("text - API and behavior regarding schema") {
+  test("text - API and behavior regarding schema") {
     // Writer
     spark.createDataset(data).write.mode(SaveMode.Overwrite).text(dir)
     testRead(spark.read.text(dir), data, textSchema)
@@ -548,7 +550,7 @@ class DataFrameReaderWriterSuite extends QueryTest with SharedSparkSession with 
     testRead(spark.read.schema(userSchema).text(Seq(dir, dir): _*), data ++ data, userSchema)
   }
 
-  ignore("textFile - API and behavior regarding schema") {
+  test("textFile - API and behavior regarding schema") {
     spark.createDataset(data).write.mode(SaveMode.Overwrite).text(dir)
 
     // Reader, without user specified schema
@@ -568,7 +570,7 @@ class DataFrameReaderWriterSuite extends QueryTest with SharedSparkSession with 
     intercept[AnalysisException] { spark.read.schema(userSchema).textFile(Seq(dir, dir): _*) }
   }
 
-  ignore("csv - API and behavior regarding schema") {
+  test("csv - API and behavior regarding schema") {
     // Writer
     spark.createDataset(data).toDF("str").write.mode(SaveMode.Overwrite).csv(dir)
     val df = spark.read.csv(dir)
@@ -594,7 +596,7 @@ class DataFrameReaderWriterSuite extends QueryTest with SharedSparkSession with 
     testRead(spark.read.schema(userSchema).csv(Seq(dir, dir): _*), data ++ data, userSchema)
   }
 
-  ignore("json - API and behavior regarding schema") {
+  test("json - API and behavior regarding schema") {
     // Writer
     spark.createDataset(data).toDF("str").write.mode(SaveMode.Overwrite).json(dir)
     val df = spark.read.json(dir)
@@ -620,6 +622,7 @@ class DataFrameReaderWriterSuite extends QueryTest with SharedSparkSession with 
     testRead(spark.read.schema(userSchema).json(Seq(dir, dir): _*), expData ++ expData, userSchema)
   }
 
+  // ignored in maven test
   ignore("parquet - API and behavior regarding schema") {
     // Writer
     spark.createDataset(data).toDF("str").write.mode(SaveMode.Overwrite).parquet(dir)
@@ -731,6 +734,7 @@ class DataFrameReaderWriterSuite extends QueryTest with SharedSparkSession with 
 
   }
 
+  // ignored in maven test
   ignore("SPARK-17230: write out results of decimal calculation") {
     val df = spark.range(99, 101)
       .selectExpr("id", "cast(id as long) * cast('1.0' as decimal(38, 18)) as num")
@@ -823,7 +827,7 @@ class DataFrameReaderWriterSuite extends QueryTest with SharedSparkSession with 
     }
   }
 
-  ignore("SPARK-18510: use user specified types for partition columns in file sources") {
+  test("SPARK-18510: use user specified types for partition columns in file sources") {
     import org.apache.spark.sql.functions.udf
     withTempDir { src =>
       val createArray = udf { (length: Long) =>
@@ -899,7 +903,7 @@ class DataFrameReaderWriterSuite extends QueryTest with SharedSparkSession with 
     }
   }
 
-  ignore("SPARK-20431: Specify a schema by using a DDL-formatted string") {
+  test("SPARK-20431: Specify a schema by using a DDL-formatted string") {
     spark.createDataset(data).write.mode(SaveMode.Overwrite).text(dir)
     testRead(spark.read.schema(userSchemaString).text(), Seq.empty, userSchema)
     testRead(spark.read.schema(userSchemaString).text(dir), data, userSchema)
@@ -923,7 +927,7 @@ class DataFrameReaderWriterSuite extends QueryTest with SharedSparkSession with 
     }
   }
 
-  ignore("SPARK-20460 Check name duplication in schema") {
+  test("SPARK-20460 Check name duplication in schema") {
     def checkWriteDataColumnDuplication(
         format: String, colName0: String, colName1: String, tempDir: File): Unit = {
       val errorMsg = intercept[AnalysisException] {
@@ -1054,7 +1058,7 @@ class DataFrameReaderWriterSuite extends QueryTest with SharedSparkSession with 
     }
   }
 
-  ignore("Create table as select command should output correct schema: complex") {
+  test("Create table as select command should output correct schema: complex") {
     withTable("tbl", "tbl2") {
       withView("view1") {
         val df = spark.range(10).map(x => (x, x.toInt, x.toInt)).toDF("col1", "col2", "col3")
@@ -1074,7 +1078,7 @@ class DataFrameReaderWriterSuite extends QueryTest with SharedSparkSession with 
     }
   }
 
-  ignore("use Spark jobs to list files") {
+  test("use Spark jobs to list files") {
     withSQLConf(SQLConf.PARALLEL_PARTITION_DISCOVERY_THRESHOLD.key -> "1") {
       withTempDir { dir =>
         val jobDescriptions = new ConcurrentLinkedQueue[String]()

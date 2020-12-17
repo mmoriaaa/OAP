@@ -52,7 +52,6 @@ class FileBasedDataSourceSuite extends QueryTest
       .set("spark.sql.sources.useV1SourceList", "avro")
       .set("spark.sql.extensions", "com.intel.oap.ColumnarPlugin")
       .set("spark.sql.execution.arrow.maxRecordsPerBatch", "4096")
-      //.set("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
       .set("spark.memory.offHeap.enabled", "true")
       .set("spark.memory.offHeap.size", "10m")
       .set("spark.sql.join.preferSortMergeJoin", "false")
@@ -60,9 +59,9 @@ class FileBasedDataSourceSuite extends QueryTest
       .set("spark.oap.sql.columnar.wholestagecodegen", "false")
       .set("spark.sql.columnar.window", "false")
       .set("spark.unsafe.exceptionOnMemoryLeak", "false")
-      //.set("spark.sql.columnar.tmp_dir", "/codegen/nativesql/")
       .set("spark.sql.columnar.sort.broadcastJoin", "true")
       .set("spark.oap.sql.columnar.preferColumnar", "true")
+      .set("spark.oap.sql.columnar.testing", "true")
 
   override def beforeAll(): Unit = {
     super.beforeAll()
@@ -90,6 +89,7 @@ class FileBasedDataSourceSuite extends QueryTest
 
   // `TEXT` data source always has a single column whose name is `value`.
   allFileBasedDataSources.filterNot(_ == "text").foreach { format =>
+    // ignored in maven test
     ignore(s"SPARK-23072 Write and read back unicode column names - $format") {
       withTempPath { path =>
         val dir = path.getCanonicalPath
@@ -170,6 +170,7 @@ class FileBasedDataSourceSuite extends QueryTest
   }
 
   allFileBasedDataSources.foreach { format =>
+    // ignored in maven test
     ignore(s"SPARK-22146 read files containing special characters using $format") {
       withTempDir { dir =>
         val tmpFile = s"$dir/$nameWithSpecialChars"
@@ -182,7 +183,7 @@ class FileBasedDataSourceSuite extends QueryTest
 
   // Separate test case for formats that support multiLine as an option.
   Seq("json", "csv").foreach { format =>
-    ignore("SPARK-23148 read files containing special characters " +
+    test("SPARK-23148 read files containing special characters " +
       s"using $format with multiline enabled") {
       withTempDir { dir =>
         val tmpFile = s"$dir/$nameWithSpecialChars"
@@ -195,7 +196,7 @@ class FileBasedDataSourceSuite extends QueryTest
   }
 
   allFileBasedDataSources.foreach { format =>
-    ignore(s"Enabling/disabling ignoreMissingFiles using $format") {
+    test(s"Enabling/disabling ignoreMissingFiles using $format") {
       def testIgnoreMissingFiles(): Unit = {
         withTempDir { dir =>
           val basePath = dir.getCanonicalPath
@@ -578,7 +579,7 @@ class FileBasedDataSourceSuite extends QueryTest
     }
   }
 
-  ignore("Option pathGlobFilter: filter files correctly") {
+  test("Option pathGlobFilter: filter files correctly") {
     withTempPath { path =>
       val dataDir = path.getCanonicalPath
       Seq("foo").toDS().write.text(dataDir)
@@ -595,7 +596,7 @@ class FileBasedDataSourceSuite extends QueryTest
     }
   }
 
-  ignore("Option pathGlobFilter: simple extension filtering should contains partition info") {
+  test("Option pathGlobFilter: simple extension filtering should contains partition info") {
     withTempPath { path =>
       val input = Seq(("foo", 1), ("oof", 2)).toDF("a", "b")
       input.write.partitionBy("b").text(path.getCanonicalPath)
@@ -660,7 +661,7 @@ class FileBasedDataSourceSuite extends QueryTest
     }
   }
 
-  ignore("Option recursiveFileLookup: disable partition inferring") {
+  test("Option recursiveFileLookup: disable partition inferring") {
     val dataPath = Thread.currentThread().getContextClassLoader
       .getResource("test-data/text-partitioned").toString
 
@@ -693,7 +694,7 @@ class FileBasedDataSourceSuite extends QueryTest
     }
   }
 
-  ignore("Return correct results when data columns overlap with partition columns (nested data)") {
+  test("Return correct results when data columns overlap with partition columns (nested data)") {
     Seq("parquet", "orc", "json").foreach { format =>
       withSQLConf(SQLConf.NESTED_SCHEMA_PRUNING_ENABLED.key -> "true") {
         withTempPath { path =>
@@ -723,6 +724,7 @@ class FileBasedDataSourceSuite extends QueryTest
     }
   }
 
+  // ignored in maven test
   ignore("SPARK-22790,SPARK-27668: spark.sql.sources.compressionFactor takes effect") {
     Seq(1.0, 0.5).foreach { compressionFactor =>
       withSQLConf(SQLConf.FILE_COMPRESSION_FACTOR.key -> compressionFactor.toString,
@@ -841,6 +843,7 @@ class FileBasedDataSourceSuite extends QueryTest
     }
   }
 
+  //ignored in maven test
   ignore("File table location should include both values of option `path` and `paths`") {
     withSQLConf(SQLConf.USE_V1_SOURCE_LIST.key -> "") {
       withTempPaths(3) { paths =>
@@ -862,7 +865,7 @@ class FileBasedDataSourceSuite extends QueryTest
     }
   }
 
-  ignore("SPARK-31116: Select nested schema with case insensitive mode") {
+  test("SPARK-31116: Select nested schema with case insensitive mode") {
     // This test case failed at only Parquet. ORC is added for test coverage parity.
     Seq("orc", "parquet").foreach { format =>
       Seq("true", "false").foreach { nestedSchemaPruningEnabled =>

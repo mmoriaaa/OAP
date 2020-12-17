@@ -30,7 +30,6 @@ class ParquetProtobufCompatibilitySuite extends ParquetCompatibilityTest with Sh
       .set("spark.sql.sources.useV1SourceList", "avro")
       .set("spark.sql.extensions", "com.intel.oap.ColumnarPlugin")
       .set("spark.sql.execution.arrow.maxRecordsPerBatch", "4096")
-      //.set("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
       .set("spark.memory.offHeap.enabled", "true")
       .set("spark.memory.offHeap.size", "10m")
       .set("spark.sql.join.preferSortMergeJoin", "false")
@@ -38,15 +37,15 @@ class ParquetProtobufCompatibilitySuite extends ParquetCompatibilityTest with Sh
       .set("spark.oap.sql.columnar.wholestagecodegen", "false")
       .set("spark.sql.columnar.window", "false")
       .set("spark.unsafe.exceptionOnMemoryLeak", "false")
-      //.set("spark.sql.columnar.tmp_dir", "/codegen/nativesql/")
       .set("spark.sql.columnar.sort.broadcastJoin", "true")
       .set("spark.oap.sql.columnar.preferColumnar", "true")
+      .set("spark.oap.sql.columnar.testing", "true")
 
-  ignore("unannotated array of primitive type") {
+  test("unannotated array of primitive type") {
     checkAnswer(readResourceParquetFile("test-data/old-repeated-int.parquet"), Row(Seq(1, 2, 3)))
   }
 
-  ignore("unannotated array of struct") {
+  test("unannotated array of struct") {
     checkAnswer(
       readResourceParquetFile("test-data/old-repeated-message.parquet"),
       Row(
@@ -79,13 +78,13 @@ class ParquetProtobufCompatibilitySuite extends ParquetCompatibilityTest with Sh
             Row("2 - 1 - 1", "2 - 1 - 2", "2 - 1 - 3")))))
   }
 
-  ignore("struct with unannotated array") {
+  test("struct with unannotated array") {
     checkAnswer(
       readResourceParquetFile("test-data/proto-struct-with-array.parquet"),
       Row(10, 9, Seq.empty, null, Row(9), Seq(Row(9), Row(10))))
   }
 
-  ignore("unannotated array of struct with unannotated array") {
+  test("unannotated array of struct with unannotated array") {
     checkAnswer(
       readResourceParquetFile("test-data/nested-array-struct.parquet"),
       Seq(
@@ -94,7 +93,7 @@ class ParquetProtobufCompatibilitySuite extends ParquetCompatibilityTest with Sh
         Row(8, Seq(Row(7, Seq(Row(9)))))))
   }
 
-  ignore("unannotated array of string") {
+  test("unannotated array of string") {
     checkAnswer(
       readResourceParquetFile("test-data/proto-repeated-string.parquet"),
       Seq(

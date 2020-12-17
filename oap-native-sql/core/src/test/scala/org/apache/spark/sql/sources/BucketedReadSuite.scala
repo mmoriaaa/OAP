@@ -49,7 +49,6 @@ class BucketedReadWithoutHiveSupportSuite extends BucketedReadSuite with SharedS
       .set("spark.sql.sources.useV1SourceList", "avro")
       .set("spark.sql.extensions", "com.intel.oap.ColumnarPlugin")
       .set("spark.sql.execution.arrow.maxRecordsPerBatch", "4096")
-      //.set("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
       .set("spark.memory.offHeap.enabled", "true")
       .set("spark.memory.offHeap.size", "10m")
       .set("spark.sql.join.preferSortMergeJoin", "false")
@@ -57,9 +56,12 @@ class BucketedReadWithoutHiveSupportSuite extends BucketedReadSuite with SharedS
       .set("spark.oap.sql.columnar.wholestagecodegen", "false")
       .set("spark.sql.columnar.window", "false")
       .set("spark.unsafe.exceptionOnMemoryLeak", "false")
-      //.set("spark.sql.columnar.tmp_dir", "/codegen/nativesql/")
       .set("spark.sql.columnar.sort.broadcastJoin", "true")
       .set("spark.oap.sql.columnar.preferColumnar", "true")
+      .set("spark.sql.parquet.enableVectorizedReader", "false")
+      .set("spark.sql.orc.enableVectorizedReader", "false")
+      .set("spark.sql.inMemoryColumnarStorage.enableVectorizedReader", "false")
+      .set("spark.oap.sql.columnar.testing", "true")
 
   protected override def beforeAll(): Unit = {
     super.beforeAll()
@@ -735,7 +737,7 @@ abstract class BucketedReadSuite extends QueryTest with SQLTestUtils {
     )
   }
 
-  ignore("SPARK-22042 ReorderJoinPredicates can break when child's partitioning is not decided") {
+  test("SPARK-22042 ReorderJoinPredicates can break when child's partitioning is not decided") {
     withTable("bucketed_table", "table1", "table2") {
       df.write.format("parquet").saveAsTable("table1")
       df.write.format("parquet").saveAsTable("table2")
@@ -783,7 +785,7 @@ abstract class BucketedReadSuite extends QueryTest with SQLTestUtils {
     }
   }
 
-  ignore("disable bucketing when the output doesn't contain all bucketing columns") {
+  test("disable bucketing when the output doesn't contain all bucketing columns") {
     withTable("bucketed_table") {
       df1.write.format("parquet").bucketBy(8, "i").saveAsTable("bucketed_table")
 
@@ -801,7 +803,7 @@ abstract class BucketedReadSuite extends QueryTest with SQLTestUtils {
   //  large. tests for the condition where the serialization of such a task may result in a stack
   //  overflow if the files list is stored in a recursive data structure
   //  This test is ignored because it takes long to run (~3 min)
-  ignore("SPARK-27100 stack overflow: read data with large partitions") {
+  test("SPARK-27100 stack overflow: read data with large partitions") {
     val nCount = 20000
     // reshuffle data so that many small files are created
     val nShufflePartitions = 10000

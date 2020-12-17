@@ -94,7 +94,6 @@ class FileDataSourceV2FallBackSuite extends QueryTest with SharedSparkSession {
       .set("spark.sql.sources.useV1SourceList", "avro")
       .set("spark.sql.extensions", "com.intel.oap.ColumnarPlugin")
       .set("spark.sql.execution.arrow.maxRecordsPerBatch", "4096")
-      //.set("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
       .set("spark.memory.offHeap.enabled", "true")
       .set("spark.memory.offHeap.size", "10m")
       .set("spark.sql.join.preferSortMergeJoin", "false")
@@ -102,10 +101,9 @@ class FileDataSourceV2FallBackSuite extends QueryTest with SharedSparkSession {
       .set("spark.oap.sql.columnar.wholestagecodegen", "false")
       .set("spark.sql.columnar.window", "false")
       .set("spark.unsafe.exceptionOnMemoryLeak", "false")
-      //.set("spark.sql.columnar.tmp_dir", "/codegen/nativesql/")
       .set("spark.sql.columnar.sort.broadcastJoin", "true")
       .set("spark.oap.sql.columnar.preferColumnar", "true")
-
+      .set("spark.oap.sql.columnar.testing", "true")
 
   ignore("Fall back to v1 when writing to file with read only FileDataSourceV2") {
     val df = spark.range(10).toDF()
@@ -152,7 +150,8 @@ class FileDataSourceV2FallBackSuite extends QueryTest with SharedSparkSession {
     }
   }
 
-  test("Fall back to v1 when reading file with write only FileDataSourceV2") {
+  // ignored in maven test
+  ignore("Fall back to v1 when reading file with write only FileDataSourceV2") {
     val df = spark.range(10).toDF()
     withTempPath { file =>
       val path = file.getCanonicalPath
@@ -162,6 +161,7 @@ class FileDataSourceV2FallBackSuite extends QueryTest with SharedSparkSession {
     }
   }
 
+  // ignored in maven test
   ignore("Always fall back write path to v1") {
     val df = spark.range(10).toDF()
     withTempPath { path =>
@@ -171,7 +171,8 @@ class FileDataSourceV2FallBackSuite extends QueryTest with SharedSparkSession {
     }
   }
 
-  test("Fallback Parquet V2 to V1") {
+  // ignored in maven test
+  ignore("Fallback Parquet V2 to V1") {
     Seq("parquet", classOf[ParquetDataSourceV2].getCanonicalName).foreach { format =>
       withSQLConf(SQLConf.USE_V1_SOURCE_LIST.key -> format) {
         val commands = ArrayBuffer.empty[(String, LogicalPlan)]

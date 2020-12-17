@@ -62,7 +62,6 @@ class InsertSuite extends DataSourceTest with SharedSparkSession {
       .set("spark.sql.sources.useV1SourceList", "avro")
       .set("spark.sql.extensions", "com.intel.oap.ColumnarPlugin")
       .set("spark.sql.execution.arrow.maxRecordsPerBatch", "4096")
-      //.set("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
       .set("spark.memory.offHeap.enabled", "true")
       .set("spark.memory.offHeap.size", "10m")
       .set("spark.sql.join.preferSortMergeJoin", "false")
@@ -70,9 +69,9 @@ class InsertSuite extends DataSourceTest with SharedSparkSession {
       .set("spark.oap.sql.columnar.wholestagecodegen", "false")
       .set("spark.sql.columnar.window", "false")
       .set("spark.unsafe.exceptionOnMemoryLeak", "false")
-      //.set("spark.sql.columnar.tmp_dir", "/codegen/nativesql/")
       .set("spark.sql.columnar.sort.broadcastJoin", "true")
       .set("spark.oap.sql.columnar.preferColumnar", "true")
+      .set("spark.oap.sql.columnar.testing", "true")
 
   protected override lazy val sql = spark.sql _
   private var path: File = null
@@ -464,7 +463,7 @@ class InsertSuite extends DataSourceTest with SharedSparkSession {
     }
   }
 
-  ignore("insert overwrite directory") {
+  test("insert overwrite directory") {
     withTempDir { dir =>
       val path = dir.toURI.getPath
 
@@ -484,7 +483,7 @@ class InsertSuite extends DataSourceTest with SharedSparkSession {
     }
   }
 
-  ignore("insert overwrite directory with path in options") {
+  test("insert overwrite directory with path in options") {
     withTempDir { dir =>
       val path = dir.toURI.getPath
 
@@ -555,7 +554,7 @@ class InsertSuite extends DataSourceTest with SharedSparkSession {
     }
   }
 
-  ignore("SPARK-20236: dynamic partition overwrite without catalog table") {
+  test("SPARK-20236: dynamic partition overwrite without catalog table") {
     withSQLConf(SQLConf.PARTITION_OVERWRITE_MODE.key -> PartitionOverwriteMode.DYNAMIC.toString) {
       withTempPath { path =>
         Seq((1, 1, 1)).toDF("i", "part1", "part2")
@@ -794,7 +793,7 @@ class InsertSuite extends DataSourceTest with SharedSparkSession {
     }
   }
 
-  ignore("SPARK-24860: dynamic partition overwrite specified per source without catalog table") {
+  test("SPARK-24860: dynamic partition overwrite specified per source without catalog table") {
     withTempPath { path =>
       Seq((1, 1), (2, 2)).toDF("i", "part")
         .write.partitionBy("part")

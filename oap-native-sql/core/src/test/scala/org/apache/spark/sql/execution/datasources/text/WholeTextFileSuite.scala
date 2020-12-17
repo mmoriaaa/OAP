@@ -36,7 +36,7 @@ abstract class WholeTextFileSuite extends QueryTest with SharedSparkSession {
   protected override def sparkConf =
     super.sparkConf.set("spark.hadoop.fs.file.impl.disable.cache", "true")
 
-  ignore("reading text file with option wholetext=true") {
+  test("reading text file with option wholetext=true") {
     val df = spark.read.option("wholetext", "true")
       .format("text")
       .load(testFile("test-data/text-suite.txt"))
@@ -57,7 +57,7 @@ abstract class WholeTextFileSuite extends QueryTest with SharedSparkSession {
     assert(data.length == 1)
   }
 
-  ignore("correctness of wholetext option") {
+  test("correctness of wholetext option") {
     import org.apache.spark.sql.catalyst.util._
     withTempDir { dir =>
       val file1 = new File(dir, "text1.txt")
@@ -86,7 +86,7 @@ abstract class WholeTextFileSuite extends QueryTest with SharedSparkSession {
   }
 
 
-  ignore("Correctness of wholetext option with gzip compression mode.") {
+  test("Correctness of wholetext option with gzip compression mode.") {
     withTempDir { dir =>
       val path = dir.getCanonicalPath
       val df1 = spark.range(0, 1000).selectExpr("CAST(id AS STRING) AS s").repartition(1)
@@ -114,7 +114,6 @@ class WholeTextFileV1Suite extends WholeTextFileSuite {
       .set("spark.sql.sources.useV1SourceList", "avro")
       .set("spark.sql.extensions", "com.intel.oap.ColumnarPlugin")
       .set("spark.sql.execution.arrow.maxRecordsPerBatch", "4096")
-      //.set("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
       .set("spark.memory.offHeap.enabled", "true")
       .set("spark.memory.offHeap.size", "10m")
       .set("spark.sql.join.preferSortMergeJoin", "false")
@@ -122,9 +121,9 @@ class WholeTextFileV1Suite extends WholeTextFileSuite {
       .set("spark.oap.sql.columnar.wholestagecodegen", "false")
       .set("spark.sql.columnar.window", "false")
       .set("spark.unsafe.exceptionOnMemoryLeak", "false")
-      //.set("spark.sql.columnar.tmp_dir", "/codegen/nativesql/")
       .set("spark.sql.columnar.sort.broadcastJoin", "true")
       .set("spark.oap.sql.columnar.preferColumnar", "true")
+      .set("spark.oap.sql.columnar.testing", "true")
       .set(SQLConf.USE_V1_SOURCE_LIST, "text")
 }
 
@@ -137,7 +136,6 @@ class WholeTextFileV2Suite extends WholeTextFileSuite {
       .set("spark.sql.sources.useV1SourceList", "avro")
       .set("spark.sql.extensions", "com.intel.oap.ColumnarPlugin")
       .set("spark.sql.execution.arrow.maxRecordsPerBatch", "4096")
-      //.set("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
       .set("spark.memory.offHeap.enabled", "true")
       .set("spark.memory.offHeap.size", "10m")
       .set("spark.sql.join.preferSortMergeJoin", "false")
@@ -145,8 +143,8 @@ class WholeTextFileV2Suite extends WholeTextFileSuite {
       .set("spark.oap.sql.columnar.wholestagecodegen", "false")
       .set("spark.sql.columnar.window", "false")
       .set("spark.unsafe.exceptionOnMemoryLeak", "false")
-      //.set("spark.sql.columnar.tmp_dir", "/codegen/nativesql/")
       .set("spark.sql.columnar.sort.broadcastJoin", "true")
       .set("spark.oap.sql.columnar.preferColumnar", "true")
+      .set("spark.oap.sql.columnar.testing", "true")
       .set(SQLConf.USE_V1_SOURCE_LIST, "")
 }

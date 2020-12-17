@@ -40,7 +40,6 @@ class ParquetInteroperabilitySuite extends ParquetCompatibilityTest with SharedS
       .set("spark.sql.sources.useV1SourceList", "avro")
       .set("spark.sql.extensions", "com.intel.oap.ColumnarPlugin")
       .set("spark.sql.execution.arrow.maxRecordsPerBatch", "4096")
-      //.set("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
       .set("spark.memory.offHeap.enabled", "true")
       .set("spark.memory.offHeap.size", "10m")
       .set("spark.sql.join.preferSortMergeJoin", "false")
@@ -48,11 +47,11 @@ class ParquetInteroperabilitySuite extends ParquetCompatibilityTest with SharedS
       .set("spark.oap.sql.columnar.wholestagecodegen", "false")
       .set("spark.sql.columnar.window", "false")
       .set("spark.unsafe.exceptionOnMemoryLeak", "false")
-      //.set("spark.sql.columnar.tmp_dir", "/codegen/nativesql/")
       .set("spark.sql.columnar.sort.broadcastJoin", "true")
       .set("spark.oap.sql.columnar.preferColumnar", "true")
+      .set("spark.oap.sql.columnar.testing", "true")
 
-  ignore("parquet files with different physical schemas but share the same logical schema") {
+  test("parquet files with different physical schemas but share the same logical schema") {
     import ParquetCompatibilityTest._
 
     // This test case writes two Parquet files, both representing the following Catalyst schema
@@ -117,7 +116,7 @@ class ParquetInteroperabilitySuite extends ParquetCompatibilityTest with SharedS
     }
   }
 
-  ignore("parquet timestamp conversion") {
+  test("parquet timestamp conversion") {
     // Make a table with one parquet file written by impala, and one parquet file written by spark.
     // We should only adjust the timestamps in the impala file, and only if the conf is set
     val impalaFile = "test-data/impala_timestamp.parq"

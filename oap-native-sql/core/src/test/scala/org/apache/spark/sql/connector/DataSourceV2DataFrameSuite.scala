@@ -40,7 +40,6 @@ class DataSourceV2DataFrameSuite
       .set("spark.sql.sources.useV1SourceList", "avro")
       .set("spark.sql.extensions", "com.intel.oap.ColumnarPlugin")
       .set("spark.sql.execution.arrow.maxRecordsPerBatch", "4096")
-      //.set("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
       .set("spark.memory.offHeap.enabled", "true")
       .set("spark.memory.offHeap.size", "10m")
       .set("spark.sql.join.preferSortMergeJoin", "false")
@@ -48,9 +47,9 @@ class DataSourceV2DataFrameSuite
       .set("spark.oap.sql.columnar.wholestagecodegen", "false")
       .set("spark.sql.columnar.window", "false")
       .set("spark.unsafe.exceptionOnMemoryLeak", "false")
-      //.set("spark.sql.columnar.tmp_dir", "/codegen/nativesql/")
       .set("spark.sql.columnar.sort.broadcastJoin", "true")
       .set("spark.oap.sql.columnar.preferColumnar", "true")
+      .set("spark.oap.sql.columnar.testing", "true")
 
   before {
     spark.conf.set("spark.sql.catalog.testcat", classOf[InMemoryTableCatalog].getName)
@@ -77,7 +76,7 @@ class DataSourceV2DataFrameSuite
     dfw.insertInto(tableName)
   }
 
-  ignore("insertInto: append across catalog") {
+  test("insertInto: append across catalog") {
     val t1 = "testcat.ns1.ns2.tbl"
     val t2 = "testcat2.db.tbl"
     withTable(t1, t2) {
@@ -90,7 +89,7 @@ class DataSourceV2DataFrameSuite
     }
   }
 
-  ignore("saveAsTable: table doesn't exist => create table") {
+  test("saveAsTable: table doesn't exist => create table") {
     val t1 = "testcat.ns1.ns2.tbl"
     withTable(t1) {
       val df = Seq((1L, "a"), (2L, "b"), (3L, "c")).toDF("id", "data")
@@ -116,7 +115,7 @@ class DataSourceV2DataFrameSuite
     }
   }
 
-  ignore("saveAsTable: table overwrite and table doesn't exist => create table") {
+  test("saveAsTable: table overwrite and table doesn't exist => create table") {
     val t1 = "testcat.ns1.ns2.tbl"
     withTable(t1) {
       val df = Seq((1L, "a"), (2L, "b"), (3L, "c")).toDF("id", "data")
@@ -125,7 +124,7 @@ class DataSourceV2DataFrameSuite
     }
   }
 
-  ignore("saveAsTable: table overwrite and table exists => replace table") {
+  test("saveAsTable: table overwrite and table exists => replace table") {
     val t1 = "testcat.ns1.ns2.tbl"
     withTable(t1) {
       sql(s"CREATE TABLE $t1 USING foo AS SELECT 'c', 'd'")
@@ -135,7 +134,7 @@ class DataSourceV2DataFrameSuite
     }
   }
 
-  ignore("saveAsTable: ignore mode and table doesn't exist => create table") {
+  test("saveAsTable: ignore mode and table doesn't exist => create table") {
     val t1 = "testcat.ns1.ns2.tbl"
     withTable(t1) {
       val df = Seq((1L, "a"), (2L, "b"), (3L, "c")).toDF("id", "data")
@@ -144,7 +143,7 @@ class DataSourceV2DataFrameSuite
     }
   }
 
-  ignore("saveAsTable: ignore mode and table exists => do nothing") {
+  test("saveAsTable: ignore mode and table exists => do nothing") {
     val t1 = "testcat.ns1.ns2.tbl"
     withTable(t1) {
       val df = Seq((1L, "a"), (2L, "b"), (3L, "c")).toDF("id", "data")
@@ -154,7 +153,7 @@ class DataSourceV2DataFrameSuite
     }
   }
 
-  ignore("SPARK-29778: saveAsTable: append mode takes write options") {
+  test("SPARK-29778: saveAsTable: append mode takes write options") {
 
     var plan: LogicalPlan = null
     val listener = new QueryExecutionListener {

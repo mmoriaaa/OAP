@@ -58,7 +58,7 @@ abstract class FileStreamSinkSuite extends StreamTest {
 
   protected def checkQueryExecution(df: DataFrame): Unit
 
-  ignore("unpartitioned writing and batch reading") {
+  test("unpartitioned writing and batch reading") {
     val inputData = MemoryStream[Int]
     val df = inputData.toDF()
 
@@ -90,7 +90,7 @@ abstract class FileStreamSinkSuite extends StreamTest {
     }
   }
 
-  ignore("SPARK-21167: encode and decode path correctly") {
+  test("SPARK-21167: encode and decode path correctly") {
     val inputData = MemoryStream[String]
     val ds = inputData.toDS()
 
@@ -119,7 +119,7 @@ abstract class FileStreamSinkSuite extends StreamTest {
     }
   }
 
-  ignore("partitioned writing and batch reading") {
+  test("partitioned writing and batch reading") {
     val inputData = MemoryStream[Int]
     val ds = inputData.toDS()
 
@@ -162,7 +162,7 @@ abstract class FileStreamSinkSuite extends StreamTest {
     }
   }
 
-  ignore("partitioned writing and batch reading with 'basePath'") {
+  test("partitioned writing and batch reading with 'basePath'") {
     withTempDir { outputDir =>
       withTempDir { checkpointDir =>
         val outputPath = outputDir.getAbsolutePath
@@ -428,7 +428,7 @@ abstract class FileStreamSinkSuite extends StreamTest {
     }
   }
 
-  ignore("special characters in output path") {
+  test("special characters in output path") {
     withTempDir { tempDir =>
       val checkpointDir = new File(tempDir, "chk")
       val outputDir = new File(tempDir, "output @#output")
@@ -526,7 +526,7 @@ abstract class FileStreamSinkSuite extends StreamTest {
     }
   }
 
-  ignore("Handle FileStreamSink metadata correctly for empty partition") {
+  test("Handle FileStreamSink metadata correctly for empty partition") {
     Seq("parquet", "orc", "text", "json").foreach { format =>
       val inputData = MemoryStream[String]
       val df = inputData.toDF()
@@ -598,9 +598,24 @@ class PendingCommitFilesTrackingManifestFileCommitProtocol(jobId: String, path: 
 }
 
 class FileStreamSinkV1Suite extends FileStreamSinkSuite {
+
   override protected def sparkConf: SparkConf =
-    super
-      .sparkConf
+    super.sparkConf
+      .setAppName("test")
+      .set("spark.sql.parquet.columnarReaderBatchSize", "4096")
+      .set("spark.sql.sources.useV1SourceList", "avro")
+      .set("spark.sql.extensions", "com.intel.oap.ColumnarPlugin")
+      .set("spark.sql.execution.arrow.maxRecordsPerBatch", "4096")
+      .set("spark.memory.offHeap.enabled", "true")
+      .set("spark.memory.offHeap.size", "10m")
+      .set("spark.sql.join.preferSortMergeJoin", "false")
+      .set("spark.sql.columnar.codegen.hashAggregate", "false")
+      .set("spark.oap.sql.columnar.wholestagecodegen", "false")
+      .set("spark.sql.columnar.window", "false")
+      .set("spark.unsafe.exceptionOnMemoryLeak", "false")
+      .set("spark.sql.columnar.sort.broadcastJoin", "true")
+      .set("spark.oap.sql.columnar.preferColumnar", "true")
+      .set("spark.oap.sql.columnar.testing", "true")
       .set(SQLConf.USE_V1_SOURCE_LIST, "csv,json,orc,text,parquet")
 
   override def checkQueryExecution(df: DataFrame): Unit = {
@@ -656,7 +671,6 @@ class FileStreamSinkV2Suite extends FileStreamSinkSuite {
       .set("spark.sql.sources.useV1SourceList", "avro")
       .set("spark.sql.extensions", "com.intel.oap.ColumnarPlugin")
       .set("spark.sql.execution.arrow.maxRecordsPerBatch", "4096")
-      //.set("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
       .set("spark.memory.offHeap.enabled", "true")
       .set("spark.memory.offHeap.size", "10m")
       .set("spark.sql.join.preferSortMergeJoin", "false")
@@ -664,9 +678,9 @@ class FileStreamSinkV2Suite extends FileStreamSinkSuite {
       .set("spark.oap.sql.columnar.wholestagecodegen", "false")
       .set("spark.sql.columnar.window", "false")
       .set("spark.unsafe.exceptionOnMemoryLeak", "false")
-      //.set("spark.sql.columnar.tmp_dir", "/codegen/nativesql/")
       .set("spark.sql.columnar.sort.broadcastJoin", "true")
       .set("spark.oap.sql.columnar.preferColumnar", "true")
+      .set("spark.oap.sql.columnar.testing", "true")
       .set(SQLConf.USE_V1_SOURCE_LIST, "")
 
   override def checkQueryExecution(df: DataFrame): Unit = {

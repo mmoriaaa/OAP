@@ -224,6 +224,7 @@ abstract class ParquetFilterSuite extends QueryTest with ParquetTest with Shared
     }
   }
 
+  // ignored in maven test
   ignore("filter pushdown - boolean") {
     val data = (true :: false :: Nil).map(b => Tuple1.apply(Option(b)))
     import testImplicits._
@@ -243,6 +244,7 @@ abstract class ParquetFilterSuite extends QueryTest with ParquetTest with Shared
     }
   }
 
+  // ignored in maven test
   ignore("filter pushdown - tinyint") {
     val data = (1 to 4).map(i => Tuple1(Option(i.toByte)))
     import testImplicits._
@@ -725,7 +727,7 @@ abstract class ParquetFilterSuite extends QueryTest with ParquetTest with Shared
     }
   }
 
-  ignore("SPARK-6554: don't push down predicates which reference partition columns") {
+  test("SPARK-6554: don't push down predicates which reference partition columns") {
     import testImplicits._
 
     withSQLConf(SQLConf.PARQUET_FILTER_PUSHDOWN_ENABLED.key -> "true") {
@@ -834,7 +836,7 @@ abstract class ParquetFilterSuite extends QueryTest with ParquetTest with Shared
   }
 
   // The unsafe row RecordReader does not support row by row filtering so run it with it disabled.
-  ignore("SPARK-11661 Still pushdown filters returned by unhandledFilters") {
+  test("SPARK-11661 Still pushdown filters returned by unhandledFilters") {
     import testImplicits._
     withSQLConf(SQLConf.PARQUET_FILTER_PUSHDOWN_ENABLED.key -> "true") {
       withSQLConf(SQLConf.PARQUET_VECTORIZED_READER_ENABLED.key -> "false") {
@@ -1071,7 +1073,8 @@ abstract class ParquetFilterSuite extends QueryTest with ParquetTest with Shared
     }
   }
 
-  test("SPARK-27698 Convertible Parquet filter predicates") {
+  // ignored in maven test
+  ignore("SPARK-27698 Convertible Parquet filter predicates") {
     val schema = StructType(Seq(
       StructField("a", IntegerType, nullable = false),
       StructField("b", StringType, nullable = true),
@@ -1193,6 +1196,7 @@ abstract class ParquetFilterSuite extends QueryTest with ParquetTest with Shared
     }
   }
 
+  // ignored in maven test
   ignore("SPARK-16371 Do not push down filters when inner name and outer name are the same") {
     import testImplicits._
     withParquetDataFrame((1 to 4).map(i => Tuple1(Tuple1(i))).toDF()) { implicit df =>
@@ -1208,7 +1212,7 @@ abstract class ParquetFilterSuite extends QueryTest with ParquetTest with Shared
     }
   }
 
-  ignore("Filters should be pushed down for vectorized Parquet reader at row group level") {
+  test("Filters should be pushed down for vectorized Parquet reader at row group level") {
     import testImplicits._
 
     withSQLConf(SQLConf.PARQUET_VECTORIZED_READER_ENABLED.key -> "true",
@@ -1600,7 +1604,6 @@ class ParquetV1FilterSuite extends ParquetFilterSuite {
       .set("spark.sql.sources.useV1SourceList", "avro")
       .set("spark.sql.extensions", "com.intel.oap.ColumnarPlugin")
       .set("spark.sql.execution.arrow.maxRecordsPerBatch", "4096")
-      //.set("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
       .set("spark.memory.offHeap.enabled", "true")
       .set("spark.memory.offHeap.size", "10m")
       .set("spark.sql.join.preferSortMergeJoin", "false")
@@ -1608,9 +1611,9 @@ class ParquetV1FilterSuite extends ParquetFilterSuite {
       .set("spark.oap.sql.columnar.wholestagecodegen", "false")
       .set("spark.sql.columnar.window", "false")
       .set("spark.unsafe.exceptionOnMemoryLeak", "false")
-      //.set("spark.sql.columnar.tmp_dir", "/codegen/nativesql/")
       .set("spark.sql.columnar.sort.broadcastJoin", "true")
       .set("spark.oap.sql.columnar.preferColumnar", "true")
+      .set("spark.oap.sql.columnar.testing", "true")
       .set(SQLConf.USE_V1_SOURCE_LIST, "parquet")
 
   override def checkFilterPredicate(
@@ -1695,7 +1698,6 @@ class ParquetV2FilterSuite extends ParquetFilterSuite {
       .set("spark.sql.sources.useV1SourceList", "avro")
       .set("spark.sql.extensions", "com.intel.oap.ColumnarPlugin")
       .set("spark.sql.execution.arrow.maxRecordsPerBatch", "4096")
-      //.set("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
       .set("spark.memory.offHeap.enabled", "true")
       .set("spark.memory.offHeap.size", "10m")
       .set("spark.sql.join.preferSortMergeJoin", "false")
@@ -1703,9 +1705,9 @@ class ParquetV2FilterSuite extends ParquetFilterSuite {
       .set("spark.oap.sql.columnar.wholestagecodegen", "false")
       .set("spark.sql.columnar.window", "false")
       .set("spark.unsafe.exceptionOnMemoryLeak", "false")
-      //.set("spark.sql.columnar.tmp_dir", "/codegen/nativesql/")
       .set("spark.sql.columnar.sort.broadcastJoin", "true")
       .set("spark.oap.sql.columnar.preferColumnar", "true")
+      .set("spark.oap.sql.columnar.testing", "true")
       .set(SQLConf.USE_V1_SOURCE_LIST, "")
 
   override def checkFilterPredicate(

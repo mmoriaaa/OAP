@@ -232,7 +232,6 @@ class FileStreamSourceSuite extends FileStreamSourceTest {
       .set("spark.sql.sources.useV1SourceList", "avro")
       .set("spark.sql.extensions", "com.intel.oap.ColumnarPlugin")
       .set("spark.sql.execution.arrow.maxRecordsPerBatch", "4096")
-      //.set("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
       .set("spark.memory.offHeap.enabled", "true")
       .set("spark.memory.offHeap.size", "10m")
       .set("spark.sql.join.preferSortMergeJoin", "false")
@@ -240,9 +239,12 @@ class FileStreamSourceSuite extends FileStreamSourceTest {
       .set("spark.oap.sql.columnar.wholestagecodegen", "false")
       .set("spark.sql.columnar.window", "false")
       .set("spark.unsafe.exceptionOnMemoryLeak", "false")
-      //.set("spark.sql.columnar.tmp_dir", "/codegen/nativesql/")
       .set("spark.sql.columnar.sort.broadcastJoin", "true")
       .set("spark.oap.sql.columnar.preferColumnar", "true")
+      .set("spark.sql.parquet.enableVectorizedReader", "false")
+      .set("spark.sql.orc.enableVectorizedReader", "false")
+      .set("spark.sql.inMemoryColumnarStorage.enableVectorizedReader", "false")
+      .set("spark.oap.sql.columnar.testing", "true")
 
   override val streamingTimeout = 80.seconds
 
@@ -709,7 +711,7 @@ class FileStreamSourceSuite extends FileStreamSourceTest {
 
   // =============== ORC file stream tests ================
 
-  ignore("read from orc files") {
+  test("read from orc files") {
     withTempDirs { case (src, tmp) =>
       val fileStream = createFileStream("orc", src.getCanonicalPath, Some(valueSchema))
       val filtered = fileStream.filter($"value" contains "keep")
@@ -762,7 +764,7 @@ class FileStreamSourceSuite extends FileStreamSourceTest {
 
   // =============== Parquet file stream tests ================
 
-  ignore("read from parquet files") {
+  test("read from parquet files") {
     withTempDirs { case (src, tmp) =>
       val fileStream = createFileStream("parquet", src.getCanonicalPath, Some(valueSchema))
       val filtered = fileStream.filter($"value" contains "keep")
@@ -1453,17 +1455,17 @@ class FileStreamSourceSuite extends FileStreamSourceTest {
     assert(options.maxFilesPerTrigger == Some(1))
   }
 
-  ignore("FileStreamSource offset - read Spark 2.1.0 offset json format") {
+  test("FileStreamSource offset - read Spark 2.1.0 offset json format") {
     val offset = readOffsetFromResource("file-source-offset-version-2.1.0-json.txt")
     assert(FileStreamSourceOffset(offset) === FileStreamSourceOffset(345))
   }
 
-  ignore("FileStreamSource offset - read Spark 2.1.0 offset long format") {
+  test("FileStreamSource offset - read Spark 2.1.0 offset long format") {
     val offset = readOffsetFromResource("file-source-offset-version-2.1.0-long.txt")
     assert(FileStreamSourceOffset(offset) === FileStreamSourceOffset(345))
   }
 
-  ignore("FileStreamSourceLog - read Spark 2.1.0 log format") {
+  test("FileStreamSourceLog - read Spark 2.1.0 log format") {
     assert(readLogFromResource("file-source-log-version-2.1.0") === Seq(
       FileEntry("/a/b/0", 1480730949000L, 0L),
       FileEntry("/a/b/1", 1480730950000L, 1L),
@@ -1966,7 +1968,6 @@ class FileStreamSourceStressTestSuite extends FileStreamSourceTest {
       .set("spark.sql.sources.useV1SourceList", "avro")
       .set("spark.sql.extensions", "com.intel.oap.ColumnarPlugin")
       .set("spark.sql.execution.arrow.maxRecordsPerBatch", "4096")
-      //.set("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
       .set("spark.memory.offHeap.enabled", "true")
       .set("spark.memory.offHeap.size", "10m")
       .set("spark.sql.join.preferSortMergeJoin", "false")
@@ -1974,9 +1975,9 @@ class FileStreamSourceStressTestSuite extends FileStreamSourceTest {
       .set("spark.oap.sql.columnar.wholestagecodegen", "false")
       .set("spark.sql.columnar.window", "false")
       .set("spark.unsafe.exceptionOnMemoryLeak", "false")
-      //.set("spark.sql.columnar.tmp_dir", "/codegen/nativesql/")
       .set("spark.sql.columnar.sort.broadcastJoin", "true")
       .set("spark.oap.sql.columnar.preferColumnar", "true")
+      .set("spark.oap.sql.columnar.testing", "true")
 
   testQuietly("file source stress test") {
     val src = Utils.createTempDir(namePrefix = "streaming.src")
