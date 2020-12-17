@@ -83,7 +83,7 @@ abstract class OrcQueryTest extends OrcTest {
     }
   }
 
-  ignore("Read/write all types with non-primitive type") {
+  test("Read/write all types with non-primitive type") {
     val data: Seq[AllDataTypesWithNonPrimitiveType] = (0 to 255).map { i =>
       AllDataTypesWithNonPrimitiveType(
         s"$i", i, i.toLong, i.toFloat, i.toDouble, i.toShort, i.toByte, i % 2 == 0,
@@ -101,7 +101,7 @@ abstract class OrcQueryTest extends OrcTest {
     }
   }
 
-  ignore("Read/write UserDefinedType") {
+  test("Read/write UserDefinedType") {
     withTempPath { path =>
       val data = Seq((1, new TestUDT.MyDenseVector(Array(0.25, 2.25, 4.25))))
       val udtDF = data.toDF("id", "vectors")
@@ -296,7 +296,7 @@ abstract class OrcQueryTest extends OrcTest {
       purge = false)
   }
 
-  ignore("overwriting") {
+  test("overwriting") {
     val data = (0 until 10).map(i => (i, i.toString))
     spark.createDataFrame(data).toDF("c1", "c2").createOrReplaceTempView("tmp")
     withOrcTable(data, "t") {
@@ -329,7 +329,7 @@ abstract class OrcQueryTest extends OrcTest {
     }
   }
 
-  ignore("nested data - struct with array field") {
+  test("nested data - struct with array field") {
     val data = (1 to 10).map(i => Tuple1((i, Seq(s"val_$i"))))
     withOrcTable(data, "t") {
       checkAnswer(sql("SELECT `_1`.`_2`[0] FROM t"), data.map {
@@ -338,7 +338,7 @@ abstract class OrcQueryTest extends OrcTest {
     }
   }
 
-  ignore("nested data - array of struct") {
+  test("nested data - array of struct") {
     val data = (1 to 10).map(i => Tuple1(Seq(i -> s"val_$i")))
     withOrcTable(data, "t") {
       checkAnswer(sql("SELECT `_1`[0].`_2` FROM t"), data.map {
@@ -431,7 +431,7 @@ abstract class OrcQueryTest extends OrcTest {
     }
   }
 
-  ignore("SPARK-14962 Produce correct results on array type with isnotnull") {
+  test("SPARK-14962 Produce correct results on array type with isnotnull") {
     withSQLConf(SQLConf.ORC_FILTER_PUSHDOWN_ENABLED.key -> "true") {
       val data = (0 until 10).map(i => Tuple1(Array(i)))
       withOrcFile(data) { file =>
@@ -735,6 +735,7 @@ class OrcV1QuerySuite extends OrcQuerySuite {
       //.set("spark.sql.columnar.tmp_dir", "/codegen/nativesql/")
       .set("spark.sql.columnar.sort.broadcastJoin", "true")
       .set("spark.oap.sql.columnar.preferColumnar", "true")
+      .set("spark.oap.sql.columnar.testing", "true")
       .set(SQLConf.USE_V1_SOURCE_LIST, "orc")
 }
 
@@ -757,5 +758,6 @@ class OrcV2QuerySuite extends OrcQuerySuite {
       //.set("spark.sql.columnar.tmp_dir", "/codegen/nativesql/")
       .set("spark.sql.columnar.sort.broadcastJoin", "true")
       .set("spark.oap.sql.columnar.preferColumnar", "true")
+      .set("spark.oap.sql.columnar.testing", "true")
       .set(SQLConf.USE_V1_SOURCE_LIST, "")
 }

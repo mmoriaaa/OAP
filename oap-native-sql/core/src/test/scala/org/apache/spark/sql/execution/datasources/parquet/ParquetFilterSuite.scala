@@ -224,7 +224,7 @@ abstract class ParquetFilterSuite extends QueryTest with ParquetTest with Shared
     }
   }
 
-  ignore("filter pushdown - boolean") {
+  test("filter pushdown - boolean") {
     val data = (true :: false :: Nil).map(b => Tuple1.apply(Option(b)))
     import testImplicits._
     withNestedDataFrame(data.toDF()) { case (inputDF, colName, resultFun) =>
@@ -243,7 +243,7 @@ abstract class ParquetFilterSuite extends QueryTest with ParquetTest with Shared
     }
   }
 
-  ignore("filter pushdown - tinyint") {
+  test("filter pushdown - tinyint") {
     val data = (1 to 4).map(i => Tuple1(Option(i.toByte)))
     import testImplicits._
     withNestedDataFrame(data.toDF()) { case (inputDF, colName, resultFun) =>
@@ -279,7 +279,7 @@ abstract class ParquetFilterSuite extends QueryTest with ParquetTest with Shared
     }
   }
 
-  ignore("filter pushdown - smallint") {
+  test("filter pushdown - smallint") {
     val data = (1 to 4).map(i => Tuple1(Option(i.toShort)))
     import testImplicits._
     withNestedDataFrame(data.toDF()) { case (inputDF, colName, resultFun) =>
@@ -315,7 +315,7 @@ abstract class ParquetFilterSuite extends QueryTest with ParquetTest with Shared
     }
   }
 
-  ignore("filter pushdown - integer") {
+  test("filter pushdown - integer") {
     val data = (1 to 4).map(i => Tuple1(Option(i)))
     import testImplicits._
     withNestedDataFrame(data.toDF()) { case (inputDF, colName, resultFun) =>
@@ -351,7 +351,7 @@ abstract class ParquetFilterSuite extends QueryTest with ParquetTest with Shared
     }
   }
 
-  ignore("filter pushdown - long") {
+  test("filter pushdown - long") {
     val data = (1 to 4).map(i => Tuple1(Option(i.toLong)))
     import testImplicits._
     withNestedDataFrame(data.toDF()) { case (inputDF, colName, resultFun) =>
@@ -387,7 +387,7 @@ abstract class ParquetFilterSuite extends QueryTest with ParquetTest with Shared
     }
   }
 
-  ignore("filter pushdown - float") {
+  test("filter pushdown - float") {
     val data = (1 to 4).map(i => Tuple1(Option(i.toFloat)))
     import testImplicits._
     withNestedDataFrame(data.toDF()) { case (inputDF, colName, resultFun) =>
@@ -423,7 +423,7 @@ abstract class ParquetFilterSuite extends QueryTest with ParquetTest with Shared
     }
   }
 
-  ignore("filter pushdown - double") {
+  test("filter pushdown - double") {
     val data = (1 to 4).map(i => Tuple1(Option(i.toDouble)))
     import testImplicits._
     withNestedDataFrame(data.toDF()) { case (inputDF, colName, resultFun) =>
@@ -459,7 +459,7 @@ abstract class ParquetFilterSuite extends QueryTest with ParquetTest with Shared
     }
   }
 
-  ignore("filter pushdown - string") {
+  test("filter pushdown - string") {
     val data = (1 to 4).map(i => Tuple1(Option(i.toString)))
     import testImplicits._
     withNestedDataFrame(data.toDF()) { case (inputDF, colName, resultFun) =>
@@ -495,7 +495,7 @@ abstract class ParquetFilterSuite extends QueryTest with ParquetTest with Shared
     }
   }
 
-  ignore("filter pushdown - binary") {
+  test("filter pushdown - binary") {
     implicit class IntToBinary(int: Int) {
       def b: Array[Byte] = int.toString.getBytes(StandardCharsets.UTF_8)
     }
@@ -536,7 +536,7 @@ abstract class ParquetFilterSuite extends QueryTest with ParquetTest with Shared
     }
   }
 
-  ignore("filter pushdown - date") {
+  test("filter pushdown - date") {
     implicit class StringToDate(s: String) {
       def date: Date = Date.valueOf(s)
     }
@@ -601,7 +601,7 @@ abstract class ParquetFilterSuite extends QueryTest with ParquetTest with Shared
     }
   }
 
-  ignore("filter pushdown - timestamp") {
+  test("filter pushdown - timestamp") {
     Seq(true, false).foreach { java8Api =>
       withSQLConf(SQLConf.DATETIME_JAVA8API_ENABLED.key -> java8Api.toString) {
         // spark.sql.parquet.outputTimestampType = TIMESTAMP_MILLIS
@@ -642,7 +642,7 @@ abstract class ParquetFilterSuite extends QueryTest with ParquetTest with Shared
     }
   }
 
-  ignore("filter pushdown - decimal") {
+  test("filter pushdown - decimal") {
     Seq(
       (false, Decimal.MAX_INT_DIGITS), // int32Writer
       (false, Decimal.MAX_LONG_DIGITS), // int64Writer
@@ -725,7 +725,7 @@ abstract class ParquetFilterSuite extends QueryTest with ParquetTest with Shared
     }
   }
 
-  ignore("SPARK-6554: don't push down predicates which reference partition columns") {
+  test("SPARK-6554: don't push down predicates which reference partition columns") {
     import testImplicits._
 
     withSQLConf(SQLConf.PARQUET_FILTER_PUSHDOWN_ENABLED.key -> "true") {
@@ -834,7 +834,7 @@ abstract class ParquetFilterSuite extends QueryTest with ParquetTest with Shared
   }
 
   // The unsafe row RecordReader does not support row by row filtering so run it with it disabled.
-  ignore("SPARK-11661 Still pushdown filters returned by unhandledFilters") {
+  test("SPARK-11661 Still pushdown filters returned by unhandledFilters") {
     import testImplicits._
     withSQLConf(SQLConf.PARQUET_FILTER_PUSHDOWN_ENABLED.key -> "true") {
       withSQLConf(SQLConf.PARQUET_VECTORIZED_READER_ENABLED.key -> "false") {
@@ -1193,7 +1193,7 @@ abstract class ParquetFilterSuite extends QueryTest with ParquetTest with Shared
     }
   }
 
-  ignore("SPARK-16371 Do not push down filters when inner name and outer name are the same") {
+  test("SPARK-16371 Do not push down filters when inner name and outer name are the same") {
     import testImplicits._
     withParquetDataFrame((1 to 4).map(i => Tuple1(Tuple1(i))).toDF()) { implicit df =>
       // Here the schema becomes as below:
@@ -1208,7 +1208,7 @@ abstract class ParquetFilterSuite extends QueryTest with ParquetTest with Shared
     }
   }
 
-  ignore("Filters should be pushed down for vectorized Parquet reader at row group level") {
+  test("Filters should be pushed down for vectorized Parquet reader at row group level") {
     import testImplicits._
 
     withSQLConf(SQLConf.PARQUET_VECTORIZED_READER_ENABLED.key -> "true",
@@ -1611,6 +1611,7 @@ class ParquetV1FilterSuite extends ParquetFilterSuite {
       //.set("spark.sql.columnar.tmp_dir", "/codegen/nativesql/")
       .set("spark.sql.columnar.sort.broadcastJoin", "true")
       .set("spark.oap.sql.columnar.preferColumnar", "true")
+      .set("spark.oap.sql.columnar.testing", "true")
       .set(SQLConf.USE_V1_SOURCE_LIST, "parquet")
 
   override def checkFilterPredicate(
@@ -1706,6 +1707,7 @@ class ParquetV2FilterSuite extends ParquetFilterSuite {
       //.set("spark.sql.columnar.tmp_dir", "/codegen/nativesql/")
       .set("spark.sql.columnar.sort.broadcastJoin", "true")
       .set("spark.oap.sql.columnar.preferColumnar", "true")
+      .set("spark.oap.sql.columnar.testing", "true")
       .set(SQLConf.USE_V1_SOURCE_LIST, "")
 
   override def checkFilterPredicate(

@@ -63,6 +63,7 @@ class DataSourceV2Suite extends QueryTest with SharedSparkSession with AdaptiveS
       //.set("spark.sql.columnar.tmp_dir", "/codegen/nativesql/")
       .set("spark.sql.columnar.sort.broadcastJoin", "true")
       .set("spark.oap.sql.columnar.preferColumnar", "true")
+      .set("spark.oap.sql.columnar.testing", "true")
 
   private def getBatch(query: DataFrame): AdvancedBatch = {
     query.queryExecution.executedPlan.collect {
@@ -78,7 +79,7 @@ class DataSourceV2Suite extends QueryTest with SharedSparkSession with AdaptiveS
     }.head
   }
 
-  ignore("simplest implementation") {
+  test("simplest implementation") {
     Seq(classOf[SimpleDataSourceV2], classOf[JavaSimpleDataSourceV2]).foreach { cls =>
       withClue(cls.getName) {
         val df = spark.read.format(cls.getName).load()
@@ -89,7 +90,7 @@ class DataSourceV2Suite extends QueryTest with SharedSparkSession with AdaptiveS
     }
   }
 
-  ignore("advanced implementation") {
+  test("advanced implementation") {
     Seq(classOf[AdvancedDataSourceV2], classOf[JavaAdvancedDataSourceV2]).foreach { cls =>
       withClue(cls.getName) {
         val df = spark.read.format(cls.getName).load()
@@ -174,7 +175,7 @@ class DataSourceV2Suite extends QueryTest with SharedSparkSession with AdaptiveS
     }
   }
 
-  ignore("partitioning reporting") {
+  test("partitioning reporting") {
     import org.apache.spark.sql.functions.{count, sum}
     Seq(classOf[PartitionAwareDataSource], classOf[JavaPartitionAwareDataSource]).foreach { cls =>
       withClue(cls.getName) {
@@ -231,7 +232,7 @@ class DataSourceV2Suite extends QueryTest with SharedSparkSession with AdaptiveS
     assert(df.queryExecution.executedPlan.collect { case e: Exchange => e }.isEmpty)
   }
 
-  ignore("simple writable data source") {
+  test("simple writable data source") {
     // TODO: java implementation.
     Seq(classOf[SimpleWritableDataSource]).foreach { cls =>
       withTempPath { file =>
@@ -296,7 +297,7 @@ class DataSourceV2Suite extends QueryTest with SharedSparkSession with AdaptiveS
     }
   }
 
-  ignore("simple counter in writer with onDataWriterCommit") {
+  test("simple counter in writer with onDataWriterCommit") {
     Seq(classOf[SimpleWritableDataSource]).foreach { cls =>
       withTempPath { file =>
         val path = file.getCanonicalPath
@@ -315,13 +316,13 @@ class DataSourceV2Suite extends QueryTest with SharedSparkSession with AdaptiveS
     }
   }
 
-  ignore("SPARK-23293: data source v2 self join") {
+  test("SPARK-23293: data source v2 self join") {
     val df = spark.read.format(classOf[SimpleDataSourceV2].getName).load()
     val df2 = df.select(($"i" + 1).as("k"), $"j")
     checkAnswer(df.join(df2, "j"), (0 until 10).map(i => Row(-i, i, i + 1)))
   }
 
-  ignore("SPARK-23301: column pruning with arbitrary expressions") {
+  test("SPARK-23301: column pruning with arbitrary expressions") {
     val df = spark.read.format(classOf[AdvancedDataSourceV2].getName).load()
 
     val q1 = df.select('i + 1)
@@ -382,7 +383,7 @@ class DataSourceV2Suite extends QueryTest with SharedSparkSession with AdaptiveS
     }
   }
 
-  ignore("SPARK-25425: extra options should override sessions options during writing") {
+  test("SPARK-25425: extra options should override sessions options during writing") {
     withTempPath { path =>
       val sessionPath = path.getCanonicalPath
       withSQLConf("spark.datasource.simpleWritableDataSource.path" -> sessionPath) {
@@ -399,7 +400,7 @@ class DataSourceV2Suite extends QueryTest with SharedSparkSession with AdaptiveS
     }
   }
 
-  ignore("SPARK-27411: DataSourceV2Strategy should not eliminate subquery") {
+  test("SPARK-27411: DataSourceV2Strategy should not eliminate subquery") {
     withTempView("t1") {
       val t2 = spark.read.format(classOf[SimpleDataSourceV2].getName).load()
       Seq(2, 3).toDF("a").createTempView("t1")

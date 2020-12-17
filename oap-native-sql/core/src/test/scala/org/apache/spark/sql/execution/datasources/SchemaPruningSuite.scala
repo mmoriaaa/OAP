@@ -428,6 +428,7 @@ abstract class SchemaPruningSuite
   // schema's column and field names. N.B. this implies that `testThunk` should pass using either a
   // case-sensitive or case-insensitive query parser
   private def testExactCaseQueryPruning(testName: String)(testThunk: => Unit): Unit = {
+    // ignored in maven test
     ignore(s"Case-sensitive parser - mixed-case schema - $testName") {
       withSQLConf(SQLConf.CASE_SENSITIVE.key -> "true") {
         withMixedCaseData(testThunk)
@@ -439,7 +440,7 @@ abstract class SchemaPruningSuite
   // Tests schema pruning for a query whose column and field names may differ in case from the table
   // schema's column and field names
   private def testMixedCaseQueryPruning(testName: String)(testThunk: => Unit): Unit = {
-    ignore(s"Case-insensitive parser - mixed-case schema - $testName") {
+    test(s"Case-insensitive parser - mixed-case schema - $testName") {
       withSQLConf(SQLConf.CASE_SENSITIVE.key -> "false") {
         withMixedCaseData(testThunk)
       }
