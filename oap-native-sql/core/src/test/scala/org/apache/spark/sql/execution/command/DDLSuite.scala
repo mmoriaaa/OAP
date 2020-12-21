@@ -60,6 +60,10 @@ class InMemoryCatalogedDDLSuite extends DDLSuite with SharedSparkSession {
       //.set("spark.sql.columnar.tmp_dir", "/codegen/nativesql/")
       .set("spark.sql.columnar.sort.broadcastJoin", "true")
       .set("spark.oap.sql.columnar.preferColumnar", "true")
+      .set("spark.sql.parquet.enableVectorizedReader", "false")
+      .set("spark.sql.orc.enableVectorizedReader", "false")
+      .set("spark.sql.inMemoryColumnarStorage.enableVectorizedReader", "false")
+      .set("spark.oap.sql.columnar.testing", "true")
 
   override def afterEach(): Unit = {
     try {
@@ -1999,7 +2003,7 @@ abstract class DDLSuite extends QueryTest with SQLTestUtils {
     }
   }
 
-  ignore("truncate partitioned table - datasource table") {
+  test("truncate partitioned table - datasource table") {
     import testImplicits._
 
     val data = (1 to 10).map { i => (i % 3, i % 5, i) }.toDF("width", "length", "height")
@@ -2201,7 +2205,7 @@ abstract class DDLSuite extends QueryTest with SQLTestUtils {
     }
   }
 
-  ignore("SPARK-16034 Partition columns should match when appending to existing data source tables") {
+  test("SPARK-16034 Partition columns should match when appending to existing data source tables") {
     import testImplicits._
     val df = Seq((1, 2, 3)).toDF("a", "b", "c")
     withTable("partitionedTable") {
@@ -2817,13 +2821,13 @@ abstract class DDLSuite extends QueryTest with SQLTestUtils {
     "org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat")
 
   supportedNativeFileFormatsForAlterTableAddColumns.foreach { provider =>
-    ignore(s"alter datasource table add columns - $provider") {
+    test(s"alter datasource table add columns - $provider") {
       testAddColumn(provider)
     }
   }
 
   supportedNativeFileFormatsForAlterTableAddColumns.foreach { provider =>
-    ignore(s"alter datasource table add columns - partitioned - $provider") {
+    test(s"alter datasource table add columns - partitioned - $provider") {
       testAddColumnPartitioned(provider)
     }
   }

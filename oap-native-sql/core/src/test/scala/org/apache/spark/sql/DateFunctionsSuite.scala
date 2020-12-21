@@ -242,7 +242,7 @@ class DateFunctionsSuite extends QueryTest with SharedSparkSession {
       Row(15, 15, 15))
   }
 
-  ignore("function date_add") {
+  test("function date_add") {
     val st1 = "2015-06-01 12:34:56"
     val st2 = "2015-06-02 12:34:56"
     val t1 = Timestamp.valueOf(st1)
@@ -275,7 +275,7 @@ class DateFunctionsSuite extends QueryTest with SharedSparkSession {
       Seq(Row(Date.valueOf("2015-06-02")), Row(Date.valueOf("2015-06-03"))))
   }
 
-  ignore("function date_sub") {
+  test("function date_sub") {
     val st1 = "2015-06-01 12:34:56"
     val st2 = "2015-06-02 12:34:56"
     val t1 = Timestamp.valueOf(st1)

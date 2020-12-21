@@ -93,6 +93,7 @@ class ExplainSuite extends ExplainSuiteHelper with DisableAdaptiveExecutionSuite
       //.set("spark.sql.columnar.tmp_dir", "/codegen/nativesql/")
       .set("spark.sql.columnar.sort.broadcastJoin", "true")
       .set("spark.oap.sql.columnar.preferColumnar", "true")
+      .set("spark.oap.sql.columnar.testing", "true")
 
   test("SPARK-23034 show rdd names in RDD scan nodes (Dataset)") {
     val rddWithName = spark.sparkContext.parallelize(Row(1, "abc") :: Nil).setName("testRdd")
@@ -386,6 +387,7 @@ class ExplainSuiteAE extends ExplainSuiteHelper with EnableAdaptiveExecutionSuit
       //.set("spark.sql.columnar.tmp_dir", "/codegen/nativesql/")
       .set("spark.sql.columnar.sort.broadcastJoin", "true")
       .set("spark.oap.sql.columnar.preferColumnar", "true")
+      .set("spark.oap.sql.columnar.testing", "true")
 
   ignore("Explain formatted") {
     val df1 = Seq((1, 2), (2, 3)).toDF("k", "v1")

@@ -61,6 +61,9 @@ class FileSourceStrategySuite extends QueryTest with SharedSparkSession with Pre
       .set("spark.sql.columnar.sort.broadcastJoin", "true")
       .set("spark.oap.sql.columnar.preferColumnar", "true")
       .set("spark.oap.sql.columnar.testing", "true")
+      .set("spark.sql.parquet.enableVectorizedReader", "false")
+      .set("spark.sql.orc.enableVectorizedReader", "false")
+      .set("spark.sql.inMemoryColumnarStorage.enableVectorizedReader", "false")
       .set("spark.default.parallelism", "1")
 
   test("unpartitioned table, single partition") {
@@ -432,7 +435,7 @@ class FileSourceStrategySuite extends QueryTest with SharedSparkSession with Pre
     }
   }
 
-  test("[SPARK-16818] partition pruned file scans implement sameResult correctly") {
+  ignore("[SPARK-16818] partition pruned file scans implement sameResult correctly") {
     Seq("orc", "").foreach { useV1ReaderList =>
       withSQLConf(SQLConf.USE_V1_SOURCE_LIST.key -> useV1ReaderList) {
         withTempPath { path =>
@@ -455,7 +458,7 @@ class FileSourceStrategySuite extends QueryTest with SharedSparkSession with Pre
     }
   }
 
-  ignore("[SPARK-16818] exchange reuse respects differences in partition pruning") {
+  test("[SPARK-16818] exchange reuse respects differences in partition pruning") {
     spark.conf.set(SQLConf.EXCHANGE_REUSE_ENABLED.key, true)
     withTempPath { path =>
       val tempDir = path.getCanonicalPath
@@ -505,7 +508,7 @@ class FileSourceStrategySuite extends QueryTest with SharedSparkSession with Pre
     }
   }
 
-  ignore("[SPARK-18753] keep pushed-down null literal as a filter in Spark-side post-filter") {
+  test("[SPARK-18753] keep pushed-down null literal as a filter in Spark-side post-filter") {
     val ds = Seq(Tuple1(Some(true)), Tuple1(None), Tuple1(Some(false))).toDS()
     withTempPath { p =>
       val path = p.getAbsolutePath

@@ -49,6 +49,7 @@ class JoinHintSuite extends PlanTest with SharedSparkSession with AdaptiveSparkP
       //.set("spark.sql.columnar.tmp_dir", "/codegen/nativesql/")
       .set("spark.sql.columnar.sort.broadcastJoin", "true")
       .set("spark.oap.sql.columnar.preferColumnar", "true")
+      .set("spark.oap.sql.columnar.testing", "true")
 
   lazy val df = spark.range(10)
   lazy val df1 = df.selectExpr("id as a1", "id as a2")
@@ -402,7 +403,7 @@ class JoinHintSuite extends PlanTest with SharedSparkSession with AdaptiveSparkP
     assert(shuffleReplicateNLJoins.size == 1)
   }
 
-  ignore("join strategy hint - broadcast") {
+  test("join strategy hint - broadcast") {
     withTempView("t1", "t2") {
       Seq((1, "4"), (2, "2")).toDF("key", "value").createTempView("t1")
       Seq((1, "1"), (2, "12.3"), (2, "123")).toDF("key", "value").createTempView("t2")
@@ -534,7 +535,7 @@ class JoinHintSuite extends PlanTest with SharedSparkSession with AdaptiveSparkP
     }
   }
 
-  ignore("join strategy hint - shuffle-replicate-nl") {
+  test("join strategy hint - shuffle-replicate-nl") {
     withTempView("t1", "t2") {
       Seq((1, "4"), (2, "2")).toDF("key", "value").createTempView("t1")
       Seq((1, "1"), (2, "12.3"), (2, "123")).toDF("key", "value").createTempView("t2")

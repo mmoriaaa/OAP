@@ -26,6 +26,7 @@ import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.adaptive.{BroadcastQueryStageExec, ColumnarCustomShuffleReaderExec, CustomShuffleReaderExec, ShuffleQueryStageExec}
 import org.apache.spark.sql.execution.aggregate.HashAggregateExec
+import org.apache.spark.sql.execution.columnar.InMemoryTableScanExec
 import org.apache.spark.sql.execution.datasources.v2.BatchScanExec
 import org.apache.spark.sql.execution.exchange.{BroadcastExchangeExec, ReusedExchangeExec, ShuffleExchangeExec}
 import org.apache.spark.sql.execution.joins.{BroadcastHashJoinExec, BuildLeft, BuildRight, ShuffledHashJoinExec, SortMergeJoinExec, _}
@@ -46,6 +47,16 @@ case class ColumnarPreOverrides(conf: SparkConf) extends Rule[SparkPlan] {
       } else {
         new ColumnarBatchScanExec(plan.output, plan.scan)
       }
+    case plan: FileSourceScanExec =>
+      if (plan.supportsColumnar) {
+        logInfo(s"FileSourceScanExec ${plan.nodeName} supports columnar")
+      }
+      plan
+    case plan: InMemoryTableScanExec =>
+      if (plan.supportsColumnar) {
+        logInfo(s"InMemoryTableScanExec supports columnar")
+      }
+      plan
     case plan: ProjectExec =>
       if (!columnarConf.enablePreferColumnar) {
         val (doConvert, child) = optimizeJoin(0, plan)

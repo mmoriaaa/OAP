@@ -428,7 +428,7 @@ class DataFrameNaFunctionsSuite extends QueryTest with SharedSparkSession {
       Row("1", "hello", "2") :: Row("3", "4", "hello") :: Nil)
   }
 
-  ignore("SPARK-30065: duplicate names are allowed for drop() if column names are not specified.") {
+  test("SPARK-30065: duplicate names are allowed for drop() if column names are not specified.") {
     val left = Seq(("1", null), ("3", "4"), ("5", "6")).toDF("col1", "col2")
     val right = Seq(("1", "2"), ("3", null), ("5", "6")).toDF("col1", "col2")
     val df = left.join(right, Seq("col1"))

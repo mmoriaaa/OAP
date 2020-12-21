@@ -70,6 +70,10 @@ class DataFrameSuite extends QueryTest
       //.set("spark.sql.columnar.tmp_dir", "/codegen/nativesql/")
       .set("spark.sql.columnar.sort.broadcastJoin", "true")
       .set("spark.oap.sql.columnar.preferColumnar", "true")
+      .set("spark.sql.parquet.enableVectorizedReader", "false")
+      .set("spark.sql.orc.enableVectorizedReader", "false")
+      .set("spark.sql.inMemoryColumnarStorage.enableVectorizedReader", "false")
+      .set("spark.oap.sql.columnar.testing", "true")
 
   test("analysis error should be eagerly reported") {
     intercept[Exception] { testData.select("nonExistentName") }
@@ -1497,7 +1501,7 @@ class DataFrameSuite extends QueryTest
       .collect()
   }
 
-  ignore("SPARK-10185: Read multiple Hadoop Filesystem paths and paths with a comma in it") {
+  test("SPARK-10185: Read multiple Hadoop Filesystem paths and paths with a comma in it") {
     withTempDir { dir =>
       val df1 = Seq((1, 22)).toDF("a", "b")
       val dir1 = new File(dir, "dir,1").getCanonicalPath
@@ -1671,7 +1675,7 @@ class DataFrameSuite extends QueryTest
     }
   }
 
-  ignore("fix case sensitivity of partition by") {
+  test("fix case sensitivity of partition by") {
     withSQLConf(SQLConf.CASE_SENSITIVE.key -> "false") {
       withTempPath { path =>
         val p = path.getAbsolutePath

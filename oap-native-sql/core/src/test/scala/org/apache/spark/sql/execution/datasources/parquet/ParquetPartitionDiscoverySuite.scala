@@ -482,7 +482,7 @@ abstract class ParquetPartitionDiscoverySuite
       PartitionSpec.emptySpec)
   }
 
-  ignore("read partitioned table - normal case") {
+  test("read partitioned table - normal case") {
     withTempDir { base =>
       for {
         pi <- Seq(1, 2)
@@ -1027,7 +1027,7 @@ abstract class ParquetPartitionDiscoverySuite
     }
   }
 
-  ignore("SPARK-23436: invalid Dates should be inferred as String in partition inference") {
+  test("SPARK-23436: invalid Dates should be inferred as String in partition inference") {
     withTempPath { path =>
       val data = Seq(("1", "2018-01", "2018-01-01-04", "test"))
         .toDF("id", "date_month", "date_hour", "data")
@@ -1063,10 +1063,13 @@ class ParquetV1PartitionDiscoverySuite extends ParquetPartitionDiscoverySuite {
       //.set("spark.sql.columnar.tmp_dir", "/codegen/nativesql/")
       .set("spark.sql.columnar.sort.broadcastJoin", "true")
       .set("spark.oap.sql.columnar.preferColumnar", "true")
+      .set("spark.sql.parquet.enableVectorizedReader", "false")
+      .set("spark.sql.orc.enableVectorizedReader", "false")
+      .set("spark.sql.inMemoryColumnarStorage.enableVectorizedReader", "false")
       .set("spark.oap.sql.columnar.testing", "true")
       .set(SQLConf.USE_V1_SOURCE_LIST, "parquet")
 
-  ignore("read partitioned table - partition key included in Parquet file") {
+  test("read partitioned table - partition key included in Parquet file") {
     withTempDir { base =>
       for {
         pi <- Seq(1, 2)
@@ -1113,7 +1116,7 @@ class ParquetV1PartitionDiscoverySuite extends ParquetPartitionDiscoverySuite {
     }
   }
 
-  ignore("read partitioned table - with nulls and partition keys are included in Parquet file") {
+  test("read partitioned table - with nulls and partition keys are included in Parquet file") {
     withTempDir { base =>
       for {
         pi <- Seq(1, 2)
@@ -1160,8 +1163,8 @@ class ParquetV1PartitionDiscoverySuite extends ParquetPartitionDiscoverySuite {
     }
   }
 
-  ignore("SPARK-18108 Parquet reader fails when data column types conflict with partition ones") {
-    withSQLConf(SQLConf.PARQUET_VECTORIZED_READER_ENABLED.key -> "true") {
+  test("SPARK-18108 Parquet reader fails when data column types conflict with partition ones") {
+    withSQLConf(SQLConf.PARQUET_VECTORIZED_READER_ENABLED.key -> "false") {
       withTempPath { dir =>
         val path = dir.getCanonicalPath
         val df = Seq((1L, 2.0)).toDF("a", "b")
@@ -1171,7 +1174,7 @@ class ParquetV1PartitionDiscoverySuite extends ParquetPartitionDiscoverySuite {
     }
   }
 
-  ignore("SPARK-21463: MetadataLogFileIndex should respect userSpecifiedSchema for partition cols") {
+  test("SPARK-21463: MetadataLogFileIndex should respect userSpecifiedSchema for partition cols") {
     withTempDir { tempDir =>
       val output = new File(tempDir, "output").toString
       val checkpoint = new File(tempDir, "chkpoint").toString
@@ -1226,6 +1229,9 @@ class ParquetV2PartitionDiscoverySuite extends ParquetPartitionDiscoverySuite {
       //.set("spark.sql.columnar.tmp_dir", "/codegen/nativesql/")
       .set("spark.sql.columnar.sort.broadcastJoin", "true")
       .set("spark.oap.sql.columnar.preferColumnar", "true")
+      .set("spark.sql.parquet.enableVectorizedReader", "false")
+      .set("spark.sql.orc.enableVectorizedReader", "false")
+      .set("spark.sql.inMemoryColumnarStorage.enableVectorizedReader", "false")
       .set("spark.oap.sql.columnar.testing", "true")
       .set(SQLConf.USE_V1_SOURCE_LIST, "")
 

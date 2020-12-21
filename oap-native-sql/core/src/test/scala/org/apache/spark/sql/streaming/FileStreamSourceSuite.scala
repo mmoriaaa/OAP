@@ -243,6 +243,9 @@ class FileStreamSourceSuite extends FileStreamSourceTest {
       //.set("spark.sql.columnar.tmp_dir", "/codegen/nativesql/")
       .set("spark.sql.columnar.sort.broadcastJoin", "true")
       .set("spark.oap.sql.columnar.preferColumnar", "true")
+      .set("spark.sql.parquet.enableVectorizedReader", "false")
+      .set("spark.sql.orc.enableVectorizedReader", "false")
+      .set("spark.sql.inMemoryColumnarStorage.enableVectorizedReader", "false")
       .set("spark.oap.sql.columnar.testing", "true")
 
   override val streamingTimeout = 80.seconds
@@ -710,7 +713,7 @@ class FileStreamSourceSuite extends FileStreamSourceTest {
 
   // =============== ORC file stream tests ================
 
-  ignore("read from orc files") {
+  test("read from orc files") {
     withTempDirs { case (src, tmp) =>
       val fileStream = createFileStream("orc", src.getCanonicalPath, Some(valueSchema))
       val filtered = fileStream.filter($"value" contains "keep")
@@ -763,7 +766,7 @@ class FileStreamSourceSuite extends FileStreamSourceTest {
 
   // =============== Parquet file stream tests ================
 
-  ignore("read from parquet files") {
+  test("read from parquet files") {
     withTempDirs { case (src, tmp) =>
       val fileStream = createFileStream("parquet", src.getCanonicalPath, Some(valueSchema))
       val filtered = fileStream.filter($"value" contains "keep")

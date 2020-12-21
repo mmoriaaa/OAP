@@ -233,7 +233,7 @@ abstract class OrcSuite extends OrcTest with BeforeAndAfterAll {
     assert(exception.getCause.getMessage.contains("Could not read footer for file"))
   }
 
-  ignore("create temporary orc table") {
+  test("create temporary orc table") {
     checkAnswer(sql("SELECT COUNT(*) FROM normal_orc_source"), Row(10))
 
     checkAnswer(
@@ -249,7 +249,7 @@ abstract class OrcSuite extends OrcTest with BeforeAndAfterAll {
       (1 to 10).map(i => Row(1, s"part-$i")))
   }
 
-  ignore("create temporary orc table as") {
+  test("create temporary orc table as") {
     checkAnswer(sql("SELECT COUNT(*) FROM normal_orc_as_source"), Row(10))
 
     checkAnswer(
@@ -562,6 +562,9 @@ class OrcSourceSuite extends OrcSuite with SharedSparkSession {
       .set("spark.sql.columnar.sort.broadcastJoin", "true")
       .set("spark.oap.sql.columnar.preferColumnar", "true")
       .set("spark.oap.sql.columnar.testing", "true")
+      .set("spark.sql.parquet.enableVectorizedReader", "false")
+      .set("spark.sql.orc.enableVectorizedReader", "false")
+      .set("spark.sql.inMemoryColumnarStorage.enableVectorizedReader", "false")
 
   protected override def beforeAll(): Unit = {
     super.beforeAll()
@@ -609,7 +612,7 @@ class OrcSourceSuite extends OrcSuite with SharedSparkSession {
     testMergeSchemasInParallel(OrcUtils.readOrcSchemasInParallel)
   }
 
-  ignore("SPARK-31580: Read a file written before ORC-569") {
+  test("SPARK-31580: Read a file written before ORC-569") {
     // Test ORC file came from ORC-621
     val df = readResourceOrcFile("test-data/TestStringDictionary.testRowIndex.orc")
     assert(df.where("str < 'row 001000'").count() === 1000)

@@ -119,7 +119,7 @@ trait AddColumnTest extends ReadSchemaTest {
 trait AddColumnIntoTheMiddleTest extends ReadSchemaTest {
   import testImplicits._
 
-  //ignored in maven test
+  // ignored in maven test
   ignore("append column into middle") {
     withTempPath { dir =>
       val path = dir.getCanonicalPath

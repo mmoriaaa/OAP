@@ -54,6 +54,9 @@ class ColumnExpressionSuite extends QueryTest with SharedSparkSession {
       //.set("spark.sql.columnar.tmp_dir", "/codegen/nativesql/")
       .set("spark.sql.columnar.sort.broadcastJoin", "true")
       .set("spark.oap.sql.columnar.preferColumnar", "true")
+      .set("spark.sql.parquet.enableVectorizedReader", "false")
+      .set("spark.sql.orc.enableVectorizedReader", "false")
+      .set("spark.sql.inMemoryColumnarStorage.enableVectorizedReader", "false")
 
   private lazy val booleanData = {
     spark.createDataFrame(sparkContext.parallelize(
@@ -686,7 +689,7 @@ class ColumnExpressionSuite extends QueryTest with SharedSparkSession {
     )
   }
 
-  ignore("input_file_name, input_file_block_start, input_file_block_length - more than one source") {
+  test("input_file_name, input_file_block_start, input_file_block_length - more than one source") {
     withTempView("tempView1") {
       withTable("tab1", "tab2") {
         val data = sparkContext.parallelize(0 to 9).toDF("id")

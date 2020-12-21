@@ -36,6 +36,7 @@ import org.apache.spark.sql.execution.datasources.v2.{BatchScanExec, DataSourceV
 import org.apache.spark.sql.execution.exchange.{Exchange, ShuffleExchangeExec}
 import org.apache.spark.sql.execution.vectorized.OnHeapColumnVector
 import org.apache.spark.sql.functions._
+import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.sources.{Filter, GreaterThan}
 import org.apache.spark.sql.test.SharedSparkSession
 import org.apache.spark.sql.types.{IntegerType, StructType}
@@ -650,7 +651,7 @@ class ColumnarDataSourceV2 extends TestingV2Source {
 object ColumnarReaderFactory extends PartitionReaderFactory {
   private final val BATCH_SIZE = 20
 
-  override def supportColumnarReads(partition: InputPartition): Boolean = true
+  override def supportColumnarReads(partition: InputPartition): Boolean = false
 
   override def createReader(partition: InputPartition): PartitionReader[InternalRow] = {
     throw new UnsupportedOperationException

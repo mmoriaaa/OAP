@@ -97,6 +97,9 @@ class ParquetIOSuite extends QueryTest with ParquetTest with SharedSparkSession 
       //.set("spark.sql.columnar.tmp_dir", "/codegen/nativesql/")
       .set("spark.sql.columnar.sort.broadcastJoin", "true")
       .set("spark.oap.sql.columnar.preferColumnar", "true")
+      .set("spark.sql.parquet.enableVectorizedReader", "false")
+      .set("spark.sql.orc.enableVectorizedReader", "false")
+      .set("spark.sql.inMemoryColumnarStorage.enableVectorizedReader", "false")
       .set("spark.oap.sql.columnar.testing", "true")
 
   /**
@@ -645,7 +648,7 @@ class ParquetIOSuite extends QueryTest with ParquetTest with SharedSparkSession 
     }
   }
 
-  ignore("null and non-null strings") {
+  test("null and non-null strings") {
     // Create a dataset where the first values are NULL and then some non-null values. The
     // number of non-nulls needs to be bigger than the ParquetReader batch size.
     val data: Dataset[String] = spark.range(200).map (i =>
@@ -653,14 +656,17 @@ class ParquetIOSuite extends QueryTest with ParquetTest with SharedSparkSession 
       else "a"
     )
     val df = data.toDF("col")
-    assert(df.agg("col" -> "count").collect().head.getLong(0) == 50)
-
+    withSQLConf(SQLConf.PARQUET_VECTORIZED_READER_ENABLED.key -> "false") {
+      assert(df.agg("col" -> "count").collect().head.getLong(0) == 50)
+    }
     withTempPath { dir =>
       val path = s"${dir.getCanonicalPath}/data"
       df.write.parquet(path)
 
       readParquetFile(path) { df2 =>
-        assert(df2.agg("col" -> "count").collect().head.getLong(0) == 50)
+        withSQLConf(SQLConf.PARQUET_VECTORIZED_READER_ENABLED.key -> "false") {
+          assert(df2.agg("col" -> "count").collect().head.getLong(0) == 50)
+        }
       }
     }
   }

@@ -74,6 +74,9 @@ class DatasetSuite extends QueryTest
       //.set("spark.sql.columnar.tmp_dir", "/codegen/nativesql/")
       .set("spark.sql.columnar.sort.broadcastJoin", "true")
       .set("spark.oap.sql.columnar.preferColumnar", "true")
+      .set("spark.sql.parquet.enableVectorizedReader", "false")
+      .set("spark.sql.orc.enableVectorizedReader", "false")
+      .set("spark.sql.inMemoryColumnarStorage.enableVectorizedReader", "false")
 
   private implicit val ordering = Ordering.by((c: ClassData) => c.a -> c.b)
 
@@ -1677,7 +1680,7 @@ class DatasetSuite extends QueryTest
     checkDataset(data.toDS(), data: _*)
   }
 
-  ignore("SPARK-23614: Union produces incorrect results when caching is used") {
+  test("SPARK-23614: Union produces incorrect results when caching is used") {
     val cached = spark.createDataset(Seq(TestDataUnion(1, 2, 3), TestDataUnion(4, 5, 6))).cache()
     val group1 = cached.groupBy("x").agg(min(col("y")) as "value")
     val group2 = cached.groupBy("x").agg(min(col("z")) as "value")

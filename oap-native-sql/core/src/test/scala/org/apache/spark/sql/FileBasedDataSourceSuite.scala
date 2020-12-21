@@ -64,6 +64,9 @@ class FileBasedDataSourceSuite extends QueryTest
       .set("spark.sql.columnar.sort.broadcastJoin", "true")
       .set("spark.oap.sql.columnar.preferColumnar", "true")
       .set("spark.oap.sql.columnar.testing", "true")
+      .set("spark.sql.parquet.enableVectorizedReader", "false")
+      .set("spark.sql.orc.enableVectorizedReader", "false")
+      .set("spark.sql.inMemoryColumnarStorage.enableVectorizedReader", "false")
 
   override def beforeAll(): Unit = {
     super.beforeAll()
@@ -467,7 +470,7 @@ class FileBasedDataSourceSuite extends QueryTest
   }
 
   Seq("parquet", "orc").foreach { format =>
-    ignore(s"Spark native readers should respect spark.sql.caseSensitive - ${format}") {
+    test(s"Spark native readers should respect spark.sql.caseSensitive - ${format}") {
       withTempDir { dir =>
         val tableName = s"spark_25132_${format}_native"
         val tableDir = dir.getCanonicalPath + s"/$tableName"
@@ -566,7 +569,7 @@ class FileBasedDataSourceSuite extends QueryTest
     }
   }
 
-  test("UDF input_file_name()") {
+  ignore("UDF input_file_name()") {
     Seq("", "orc").foreach { useV1SourceReaderList =>
       withSQLConf(SQLConf.USE_V1_SOURCE_LIST.key -> useV1SourceReaderList) {
         withTempPath { dir =>
@@ -680,7 +683,7 @@ class FileBasedDataSourceSuite extends QueryTest
     assert(fileList.toSet === expectedFileList.toSet)
   }
 
-  ignore("Return correct results when data columns overlap with partition columns") {
+  test("Return correct results when data columns overlap with partition columns") {
     Seq("parquet", "orc", "json").foreach { format =>
       withTempPath { path =>
         val tablePath = new File(s"${path.getCanonicalPath}/cOl3=c/cOl1=a/cOl5=e")
@@ -763,7 +766,7 @@ class FileBasedDataSourceSuite extends QueryTest
     }
   }
 
-  ignore("File source v2: support partition pruning") {
+  test("File source v2: support partition pruning") {
     withSQLConf(SQLConf.USE_V1_SOURCE_LIST.key -> "") {
       allFileBasedDataSources.foreach { format =>
         withTempPath { dir =>
@@ -807,7 +810,7 @@ class FileBasedDataSourceSuite extends QueryTest
     }
   }
 
-  ignore("File source v2: support passing data filters to FileScan without partitionFilters") {
+  test("File source v2: support passing data filters to FileScan without partitionFilters") {
     withSQLConf(SQLConf.USE_V1_SOURCE_LIST.key -> "") {
       allFileBasedDataSources.foreach { format =>
         withTempPath { dir =>

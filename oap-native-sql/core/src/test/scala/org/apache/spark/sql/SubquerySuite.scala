@@ -49,6 +49,7 @@ class SubquerySuite extends QueryTest with SharedSparkSession with AdaptiveSpark
       //.set("spark.sql.columnar.tmp_dir", "/codegen/nativesql/")
       .set("spark.sql.columnar.sort.broadcastJoin", "true")
       .set("spark.oap.sql.columnar.preferColumnar", "true")
+      .set("spark.oap.sql.columnar.testing", "true")
 
   setupTestData()
 
