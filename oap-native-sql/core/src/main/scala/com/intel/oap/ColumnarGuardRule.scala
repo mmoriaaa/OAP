@@ -137,6 +137,7 @@ case class ColumnarGuardRule(conf: SparkConf) extends Rule[SparkPlan] {
       }
     } catch {
       case e: UnsupportedOperationException =>
+        System.out.println(s"Fall back to use row-based operators, error is ${e.getMessage}")
         return false
     }
     return true
