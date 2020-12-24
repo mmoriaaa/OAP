@@ -65,6 +65,10 @@ class CachedTableSuite extends QueryTest with SQLTestUtils
       //.set("spark.sql.columnar.tmp_dir", "/codegen/nativesql/")
       .set("spark.sql.columnar.sort.broadcastJoin", "true")
       .set("spark.oap.sql.columnar.preferColumnar", "true")
+      .set("spark.sql.parquet.enableVectorizedReader", "false")
+      .set("spark.sql.orc.enableVectorizedReader", "false")
+      .set("spark.sql.inMemoryColumnarStorage.enableVectorizedReader", "false")
+      .set("spark.oap.sql.columnar.testing", "true")
 
   setupTestData()
 
@@ -759,7 +763,7 @@ class CachedTableSuite extends QueryTest with SQLTestUtils
     }
   }
 
-  ignore("refreshByPath should refresh all cached plans with the specified path") {
+  test("refreshByPath should refresh all cached plans with the specified path") {
     withTempDir { dir =>
       val path = dir.getCanonicalPath()
 
@@ -942,7 +946,7 @@ class CachedTableSuite extends QueryTest with SQLTestUtils
     }
   }
 
-  ignore("SPARK-24596 Non-cascading Cache Invalidation - drop persistent view") {
+  test("SPARK-24596 Non-cascading Cache Invalidation - drop persistent view") {
     withTable("t") {
       spark.range(1, 10).toDF("key").withColumn("value", $"key" * 2)
         .write.format("json").saveAsTable("t")
@@ -962,7 +966,7 @@ class CachedTableSuite extends QueryTest with SQLTestUtils
     }
   }
 
-  ignore("SPARK-24596 Non-cascading Cache Invalidation - uncache table") {
+  test("SPARK-24596 Non-cascading Cache Invalidation - uncache table") {
     withTable("t") {
       spark.range(1, 10).toDF("key").withColumn("value", $"key" * 2)
         .write.format("json").saveAsTable("t")

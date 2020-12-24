@@ -147,7 +147,7 @@ class ColumnarAdaptiveQueryExecSuite
     }
   }
 
-  ignore("SPARK-29544: adaptive skew join with different join types") {
+  test("SPARK-29544: adaptive skew join with different join types") {
     withSQLConf(
       SQLConf.ADAPTIVE_EXECUTION_ENABLED.key -> "true",
       SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key -> "-1",

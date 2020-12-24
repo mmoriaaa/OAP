@@ -43,6 +43,10 @@ class SimpleSQLViewSuite extends SQLViewSuite with SharedSparkSession {
       //.set("spark.sql.columnar.tmp_dir", "/codegen/nativesql/")
       .set("spark.sql.columnar.sort.broadcastJoin", "true")
       .set("spark.oap.sql.columnar.preferColumnar", "true")
+      .set("spark.sql.parquet.enableVectorizedReader", "false")
+      .set("spark.sql.orc.enableVectorizedReader", "false")
+      .set("spark.sql.inMemoryColumnarStorage.enableVectorizedReader", "false")
+      .set("spark.oap.sql.columnar.testing", "true")
 }
 
 /**
@@ -507,7 +511,7 @@ abstract class SQLViewSuite extends QueryTest with SQLTestUtils {
     }
   }
 
-  ignore("create view for partitioned parquet table") {
+  test("create view for partitioned parquet table") {
     // partitioned parquet table is not hive-compatible, make sure the new flag fix it.
     withTable("parTable") {
       withView("testView") {
@@ -558,7 +562,7 @@ abstract class SQLViewSuite extends QueryTest with SQLTestUtils {
     }
   }
 
-  ignore("Using view after adding more columns") {
+  test("Using view after adding more columns") {
     withTable("add_col") {
       spark.range(10).write.saveAsTable("add_col")
       withView("v") {
@@ -607,7 +611,7 @@ abstract class SQLViewSuite extends QueryTest with SQLTestUtils {
     }
   }
 
-  ignore("correctly handle a view with custom column names") {
+  test("correctly handle a view with custom column names") {
     withTable("tab1") {
       spark.range(1, 10).selectExpr("id", "id + 1 id1").write.saveAsTable("tab1")
       withView("testView", "testView2") {
@@ -746,7 +750,7 @@ abstract class SQLViewSuite extends QueryTest with SQLTestUtils {
     }
   }
 
-  ignore("SPARK-23519 view should be created even when query output contains duplicate col name") {
+  test("SPARK-23519 view should be created even when query output contains duplicate col name") {
     withTable("t23519") {
       withView("v23519") {
         sql("CREATE TABLE t23519 USING parquet AS SELECT 1 AS c1")

@@ -74,6 +74,7 @@ case class ColumnarPreOverrides(conf: SparkConf) extends Rule[SparkPlan] {
       }
     case plan: FilterExec =>
       val child = replaceWithColumnarPlan(plan.child)
+      logDebug(s"Columnar Processing for ${plan.getClass} is currently supported.")
       new ColumnarConditionProjectExec(plan.condition, null, child)
     case plan: HashAggregateExec =>
       val child = replaceWithColumnarPlan(plan.child)

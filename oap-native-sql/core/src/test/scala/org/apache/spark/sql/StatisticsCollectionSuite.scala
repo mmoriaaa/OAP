@@ -61,6 +61,10 @@ class StatisticsCollectionSuite extends StatisticsCollectionTestBase with Shared
       //.set("spark.sql.columnar.tmp_dir", "/codegen/nativesql/")
       .set("spark.sql.columnar.sort.broadcastJoin", "true")
       .set("spark.oap.sql.columnar.preferColumnar", "true")
+      .set("spark.sql.parquet.enableVectorizedReader", "false")
+      .set("spark.sql.orc.enableVectorizedReader", "false")
+      .set("spark.sql.inMemoryColumnarStorage.enableVectorizedReader", "false")
+      .set("spark.oap.sql.columnar.testing", "true")
 
   test("estimates the size of a limit 0 on outer join") {
     withTempView("test") {
@@ -229,7 +233,7 @@ class StatisticsCollectionSuite extends StatisticsCollectionTestBase with Shared
     }
   }
 
-  ignore("SPARK-25028: column stats collection for null partitioning columns") {
+  test("SPARK-25028: column stats collection for null partitioning columns") {
     val table = "analyze_partition_with_null"
     withTempDir { dir =>
       withTable(table) {

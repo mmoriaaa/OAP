@@ -66,6 +66,7 @@ class StreamingQuerySuite extends StreamTest with BeforeAndAfter with Logging wi
       //.set("spark.sql.columnar.tmp_dir", "/codegen/nativesql/")
       .set("spark.sql.columnar.sort.broadcastJoin", "true")
       .set("spark.oap.sql.columnar.preferColumnar", "true")
+      .set("spark.oap.sql.columnar.testing", "true")
 
   // To make === between double tolerate inexact values
   implicit val doubleEquality = TolerantNumerics.tolerantDoubleEquality(0.01)
@@ -986,7 +987,7 @@ class StreamingQuerySuite extends StreamTest with BeforeAndAfter with Logging wi
       sparkMetadata.replaceAll("TEMPDIR", dir.getCanonicalPath), UTF_8)
   }
 
-  ignore("detect escaped path and report the migration guide") {
+  test("detect escaped path and report the migration guide") {
     // Assert that the error message contains the migration conf, path and the legacy path.
     def assertMigrationError(errorMessage: String, path: File, legacyPath: File): Unit = {
       Seq(SQLConf.STREAMING_CHECKPOINT_ESCAPED_PATH_CHECK_ENABLED.key,
@@ -1070,7 +1071,7 @@ class StreamingQuerySuite extends StreamTest with BeforeAndAfter with Logging wi
     }
   }
 
-  ignore("ignore the escaped path check when the flag is off") {
+  test("ignore the escaped path check when the flag is off") {
     withTempDir { tempDir =>
       setUp2dot4dot0Checkpoint(tempDir)
       val outputDir = new File(tempDir, "output %@#output")

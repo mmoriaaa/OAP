@@ -44,6 +44,7 @@ class DeprecatedAPISuite extends QueryTest with SharedSparkSession {
       //.set("spark.sql.columnar.tmp_dir", "/codegen/nativesql/")
       .set("spark.sql.columnar.sort.broadcastJoin", "true")
       .set("spark.oap.sql.columnar.preferColumnar", "true")
+      .set("spark.oap.sql.columnar.testing", "true")
 
   private lazy val doubleData = (1 to 10).map(i => DoubleData(i * 0.2 - 1, i * -0.2 + 1)).toDF()
 
@@ -166,7 +167,7 @@ class DeprecatedAPISuite extends QueryTest with SharedSparkSession {
       Row("Jack", 20) :: Row("Marry", 18) :: Nil)
   }
 
-  ignore("SQLContext.parquetFile") {
+  test("SQLContext.parquetFile") {
     val sqlContext = spark.sqlContext
     withTempDir { dir =>
       val parquetFile = s"${dir.toString}/${System.currentTimeMillis()}"
@@ -177,7 +178,7 @@ class DeprecatedAPISuite extends QueryTest with SharedSparkSession {
     }
   }
 
-  ignore("SQLContext.jsonFile") {
+  test("SQLContext.jsonFile") {
     val sqlContext = spark.sqlContext
     withTempDir { dir =>
       val jsonFile = s"${dir.toString}/${System.currentTimeMillis()}"
@@ -217,7 +218,7 @@ class DeprecatedAPISuite extends QueryTest with SharedSparkSession {
     }
   }
 
-  ignore("SQLContext.load") {
+  test("SQLContext.load") {
     withTempDir { dir =>
       val path = s"${dir.toString}/${System.currentTimeMillis()}"
       val expectDF = spark.range(10).toDF()
