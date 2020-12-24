@@ -46,8 +46,11 @@ class ReplaceNullWithFalseInPredicateEndToEndSuite extends QueryTest with Shared
       //.set("spark.sql.columnar.tmp_dir", "/codegen/nativesql/")
       .set("spark.sql.columnar.sort.broadcastJoin", "true")
       .set("spark.oap.sql.columnar.preferColumnar", "true")
+      .set("spark.sql.parquet.enableVectorizedReader", "false")
+      .set("spark.sql.orc.enableVectorizedReader", "false")
+      .set("spark.sql.inMemoryColumnarStorage.enableVectorizedReader", "false")
 
-  ignore("SPARK-25860: Replace Literal(null, _) with FalseLiteral whenever possible") {
+  test("SPARK-25860: Replace Literal(null, _) with FalseLiteral whenever possible") {
     withTable("t1", "t2") {
       Seq((1, true), (2, false)).toDF("l", "b").write.saveAsTable("t1")
       Seq(2, 3).toDF("l").write.saveAsTable("t2")

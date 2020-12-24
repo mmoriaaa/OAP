@@ -352,7 +352,7 @@ class DataFrameSetOperationsSuite extends QueryTest with SharedSparkSession {
     )
   }
 
-  ignore("SPARK-17123: Performing set operations that combine non-scala native types") {
+  test("SPARK-17123: Performing set operations that combine non-scala native types") {
     val dates = Seq(
       (new Date(0), BigDecimal.valueOf(1), new Timestamp(2)),
       (new Date(3), BigDecimal.valueOf(4), new Timestamp(5))

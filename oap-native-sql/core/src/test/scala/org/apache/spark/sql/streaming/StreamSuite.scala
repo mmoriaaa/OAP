@@ -70,6 +70,7 @@ class StreamSuite extends StreamTest {
       //.set("spark.sql.columnar.tmp_dir", "/codegen/nativesql/")
       .set("spark.sql.columnar.sort.broadcastJoin", "true")
       .set("spark.oap.sql.columnar.preferColumnar", "true")
+      .set("spark.oap.sql.columnar.testing", "true")
       .set("spark.redaction.string.regex", "file:/[\\w_]+")
 
   test("map with recovery") {
@@ -173,7 +174,7 @@ class StreamSuite extends StreamTest {
     }
   }
 
-  ignore("SPARK-20432: union one stream with itself") {
+  test("SPARK-20432: union one stream with itself") {
     val df = spark.readStream.format(classOf[FakeDefaultSource].getName).load().select("a")
     val unioned = df.union(df)
     withTempDir { outputDir =>
@@ -224,7 +225,7 @@ class StreamSuite extends StreamTest {
     }
   }
 
-  ignore("DataFrame reuse") {
+  test("DataFrame reuse") {
     def assertDF(df: DataFrame): Unit = {
       withTempDir { outputDir =>
         withTempDir { checkpointDir =>
@@ -736,7 +737,7 @@ class StreamSuite extends StreamTest {
       CheckAnswer((1, 2), (2, 2), (3, 2)))
   }
 
-  ignore("recover from a Spark v2.1 checkpoint") {
+  test("recover from a Spark v2.1 checkpoint") {
     var inputData: MemoryStream[Int] = null
     var query: DataStreamWriter[Row] = null
 

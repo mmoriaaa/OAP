@@ -65,6 +65,10 @@ class SQLQuerySuite extends QueryTest with SharedSparkSession with AdaptiveSpark
       //.set("spark.sql.columnar.tmp_dir", "/codegen/nativesql/")
       .set("spark.sql.columnar.sort.broadcastJoin", "true")
       .set("spark.oap.sql.columnar.preferColumnar", "true")
+      .set("spark.sql.parquet.enableVectorizedReader", "false")
+      .set("spark.sql.orc.enableVectorizedReader", "false")
+      .set("spark.sql.inMemoryColumnarStorage.enableVectorizedReader", "false")
+      .set("spark.oap.sql.columnar.testing", "true")
 
   setupTestData()
 
@@ -2574,18 +2578,20 @@ class SQLQuerySuite extends QueryTest with SharedSparkSession with AdaptiveSpark
     }
   }
 
-  ignore("SPARK-16674: field names containing dots for both fields and partitioned fields") {
+  test("SPARK-16674: field names containing dots for both fields and partitioned fields") {
     withTempPath { path =>
-      val data = (1 to 10).map(i => (i, s"data-$i", i % 2, if ((i % 2) == 0) "a" else "b"))
-        .toDF("col.1", "col.2", "part.col1", "part.col2")
-      data.write
-        .format("parquet")
-        .partitionBy("part.col1", "part.col2")
-        .save(path.getCanonicalPath)
-      val readBack = spark.read.format("parquet").load(path.getCanonicalPath)
-      checkAnswer(
-        readBack.selectExpr("`part.col1`", "`col.1`"),
-        data.selectExpr("`part.col1`", "`col.1`"))
+      withSQLConf(SQLConf.PARQUET_VECTORIZED_READER_ENABLED.key -> "false") {
+        val data = (1 to 10).map(i => (i, s"data-$i", i % 2, if ((i % 2) == 0) "a" else "b"))
+          .toDF("col.1", "col.2", "part.col1", "part.col2")
+        data.write
+          .format("parquet")
+          .partitionBy("part.col1", "part.col2")
+          .save(path.getCanonicalPath)
+        val readBack = spark.read.format("parquet").load(path.getCanonicalPath)
+        checkAnswer(
+          readBack.selectExpr("`part.col1`", "`col.1`"),
+          data.selectExpr("`part.col1`", "`col.1`"))
+      }
     }
   }
 
@@ -2639,16 +2645,18 @@ class SQLQuerySuite extends QueryTest with SharedSparkSession with AdaptiveSpark
     }
   }
 
-  ignore("should be able to resolve a persistent view") {
+  test("should be able to resolve a persistent view") {
     withTable("t1", "t2") {
       withView("v1") {
-        sql("CREATE TABLE `t1` USING parquet AS SELECT * FROM VALUES(1, 1) AS t1(a, b)")
-        sql("CREATE TABLE `t2` USING parquet AS SELECT * FROM VALUES('a', 2, 1.0) AS t2(d, e, f)")
-        sql("CREATE VIEW `v1`(x, y) AS SELECT * FROM t1")
-        checkAnswer(spark.table("v1").orderBy("x"), Row(1, 1))
+        withSQLConf(SQLConf.PARQUET_VECTORIZED_READER_ENABLED.key -> "false") {
+          sql("CREATE TABLE `t1` USING parquet AS SELECT * FROM VALUES(1, 1) AS t1(a, b)")
+          sql("CREATE TABLE `t2` USING parquet AS SELECT * FROM VALUES('a', 2, 1.0) AS t2(d, e, f)")
+          sql("CREATE VIEW `v1`(x, y) AS SELECT * FROM t1")
+          checkAnswer(spark.table("v1").orderBy("x"), Row(1, 1))
 
-        sql("ALTER VIEW `v1` AS SELECT * FROM t2")
-        checkAnswer(spark.table("v1").orderBy("f"), Row("a", 2, 1.0))
+          sql("ALTER VIEW `v1` AS SELECT * FROM t2")
+          checkAnswer(spark.table("v1").orderBy("f"), Row("a", 2, 1.0))
+        }
       }
     }
   }
@@ -2820,14 +2828,16 @@ class SQLQuerySuite extends QueryTest with SharedSparkSession with AdaptiveSpark
     }
   }
 
-  ignore("SPARK-23079: constraints should be inferred correctly with aliases") {
+  test("SPARK-23079: constraints should be inferred correctly with aliases") {
     withTable("t") {
-      spark.range(5).write.saveAsTable("t")
-      val t = spark.read.table("t")
-      val left = t.withColumn("xid", $"id" + lit(1)).as("x")
-      val right = t.withColumnRenamed("id", "xid").as("y")
-      val df = left.join(right, "xid").filter("id = 3").toDF()
-      checkAnswer(df, Row(4, 3))
+      withSQLConf(SQLConf.PARQUET_VECTORIZED_READER_ENABLED.key -> "false") {
+        spark.range(5).write.saveAsTable("t")
+        val t = spark.read.table("t")
+        val left = t.withColumn("xid", $"id" + lit(1)).as("x")
+        val right = t.withColumnRenamed("id", "xid").as("y")
+        val df = left.join(right, "xid").filter("id = 3").toDF()
+        checkAnswer(df, Row(4, 3))
+      }
     }
   }
 
@@ -2894,40 +2904,44 @@ class SQLQuerySuite extends QueryTest with SharedSparkSession with AdaptiveSpark
     assert (aggregateExpressions.get.size == 2)
   }
 
-  ignore("SPARK-22356: overlapped columns between data and partition schema in data source tables") {
+  test("SPARK-22356: overlapped columns between data and partition schema in data source tables") {
     withTempPath { path =>
-      Seq((1, 1, 1), (1, 2, 1)).toDF("i", "p", "j")
-        .write.mode("overwrite").parquet(new File(path, "p=1").getCanonicalPath)
-      withTable("t") {
-        sql(s"create table t using parquet options(path='${path.getCanonicalPath}')")
-        // We should respect the column order in data schema.
-        assert(spark.table("t").columns === Array("i", "p", "j"))
-        checkAnswer(spark.table("t"), Row(1, 1, 1) :: Row(1, 1, 1) :: Nil)
-        // The DESC TABLE should report same schema as table scan.
-        assert(sql("desc t").select("col_name")
-          .as[String].collect().mkString(",").contains("i,p,j"))
+      withSQLConf(SQLConf.PARQUET_VECTORIZED_READER_ENABLED.key -> "false") {
+        Seq((1, 1, 1), (1, 2, 1)).toDF("i", "p", "j")
+          .write.mode("overwrite").parquet(new File(path, "p=1").getCanonicalPath)
+        withTable("t") {
+          sql(s"create table t using parquet options(path='${path.getCanonicalPath}')")
+          // We should respect the column order in data schema.
+          assert(spark.table("t").columns === Array("i", "p", "j"))
+          checkAnswer(spark.table("t"), Row(1, 1, 1) :: Row(1, 1, 1) :: Nil)
+          // The DESC TABLE should report same schema as table scan.
+          assert(sql("desc t").select("col_name")
+            .as[String].collect().mkString(",").contains("i,p,j"))
+        }
       }
     }
   }
 
-  ignore("SPARK-24696 ColumnPruning rule fails to remove extra Project") {
+  test("SPARK-24696 ColumnPruning rule fails to remove extra Project") {
     withTable("fact_stats", "dim_stats") {
-      val factData = Seq((1, 1, 99, 1), (2, 2, 99, 2), (3, 1, 99, 3), (4, 2, 99, 4))
-      val storeData = Seq((1, "BW", "DE"), (2, "AZ", "US"))
-      spark.udf.register("filterND", udf((value: Int) => value > 2).asNondeterministic)
-      factData.toDF("date_id", "store_id", "product_id", "units_sold")
-        .write.mode("overwrite").partitionBy("store_id").format("parquet").saveAsTable("fact_stats")
-      storeData.toDF("store_id", "state_province", "country")
-        .write.mode("overwrite").format("parquet").saveAsTable("dim_stats")
-      val df = sql(
-        """
-          |SELECT f.date_id, f.product_id, f.store_id FROM
-          |(SELECT date_id, product_id, store_id
-          |   FROM fact_stats WHERE filterND(date_id)) AS f
-          |JOIN dim_stats s
-          |ON f.store_id = s.store_id WHERE s.country = 'DE'
+      withSQLConf(SQLConf.PARQUET_VECTORIZED_READER_ENABLED.key -> "false") {
+        val factData = Seq((1, 1, 99, 1), (2, 2, 99, 2), (3, 1, 99, 3), (4, 2, 99, 4))
+        val storeData = Seq((1, "BW", "DE"), (2, "AZ", "US"))
+        spark.udf.register("filterND", udf((value: Int) => value > 2).asNondeterministic)
+        factData.toDF("date_id", "store_id", "product_id", "units_sold")
+          .write.mode("overwrite").partitionBy("store_id").format("parquet").saveAsTable("fact_stats")
+        storeData.toDF("store_id", "state_province", "country")
+          .write.mode("overwrite").format("parquet").saveAsTable("dim_stats")
+        val df = sql(
+          """
+            |SELECT f.date_id, f.product_id, f.store_id FROM
+            |(SELECT date_id, product_id, store_id
+            |   FROM fact_stats WHERE filterND(date_id)) AS f
+            |JOIN dim_stats s
+            |ON f.store_id = s.store_id WHERE s.country = 'DE'
         """.stripMargin)
-      checkAnswer(df, Seq(Row(3, 99, 1)))
+        checkAnswer(df, Seq(Row(3, 99, 1)))
+      }
     }
   }
 
@@ -3271,32 +3285,36 @@ class SQLQuerySuite extends QueryTest with SharedSparkSession with AdaptiveSpark
     sql("DROP VIEW t1")
   }
 
-  ignore("SPARK-28156: self-join should not miss cached view") {
+  test("SPARK-28156: self-join should not miss cached view") {
     withTable("table1") {
       withView("table1_vw") {
         withTempView("cachedview") {
-          val df = Seq.tabulate(5) { x => (x, x + 1, x + 2, x + 3) }.toDF("a", "b", "c", "d")
-          df.write.mode("overwrite").format("orc").saveAsTable("table1")
-          sql("drop view if exists table1_vw")
-          sql("create view table1_vw as select * from table1")
+          withSQLConf(SQLConf.PARQUET_VECTORIZED_READER_ENABLED.key -> "false") {
+            withSQLConf(SQLConf.CACHE_VECTORIZED_READER_ENABLED.key -> "false") {
+              val df = Seq.tabulate(5) { x => (x, x + 1, x + 2, x + 3) }.toDF("a", "b", "c", "d")
+              df.write.mode("overwrite").format("orc").saveAsTable("table1")
+              sql("drop view if exists table1_vw")
+              sql("create view table1_vw as select * from table1")
 
-          val cachedView = sql("select a, b, c, d from table1_vw")
+              val cachedView = sql("select a, b, c, d from table1_vw")
 
-          cachedView.createOrReplaceTempView("cachedview")
-          cachedView.persist()
+              cachedView.createOrReplaceTempView("cachedview")
+              cachedView.persist()
 
-          val queryDf = sql(
-            s"""select leftside.a, leftside.b
-               |from cachedview leftside
-               |join cachedview rightside
-               |on leftside.a = rightside.a
+              val queryDf = sql(
+                s"""select leftside.a, leftside.b
+                   |from cachedview leftside
+                   |join cachedview rightside
+                   |on leftside.a = rightside.a
            """.stripMargin)
 
-          val inMemoryTableScan = collect(queryDf.queryExecution.executedPlan) {
-            case i: InMemoryTableScanExec => i
+              val inMemoryTableScan = collect(queryDf.queryExecution.executedPlan) {
+                case i: InMemoryTableScanExec => i
+              }
+              assert(inMemoryTableScan.size == 2)
+              checkAnswer(queryDf, Row(0, 1) :: Row(1, 2) :: Row(2, 3) :: Row(3, 4) :: Row(4, 5) :: Nil)
+            }
           }
-          assert(inMemoryTableScan.size == 2)
-          checkAnswer(queryDf, Row(0, 1) :: Row(1, 2) :: Row(2, 3) :: Row(3, 4) :: Row(4, 5) :: Nil)
         }
       }
     }

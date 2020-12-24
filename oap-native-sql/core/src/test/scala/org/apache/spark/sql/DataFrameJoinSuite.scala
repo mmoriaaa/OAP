@@ -55,6 +55,7 @@ class DataFrameJoinSuite extends QueryTest
       //.set("spark.sql.columnar.tmp_dir", "/codegen/nativesql/")
       .set("spark.sql.columnar.sort.broadcastJoin", "true")
       .set("spark.oap.sql.columnar.preferColumnar", "true")
+      .set("spark.oap.sql.columnar.testing", "true")
 
   test("join - join using") {
     val df = Seq(1, 2, 3).map(i => (i, i.toString)).toDF("int", "str")
@@ -142,17 +143,17 @@ class DataFrameJoinSuite extends QueryTest
         Row(4, "4", 1, "1") :: Row(4, "4", 3, "3") :: Nil)
   }
 
-  ignore("broadcast join hint using broadcast function") {
+  test("broadcast join hint using broadcast function") {
     val df1 = Seq((1, "1"), (2, "2")).toDF("key", "value")
     val df2 = Seq((1, "1"), (2, "2")).toDF("key", "value")
 
     // equijoin - should be converted into broadcast join
     val plan1 = df1.join(broadcast(df2), "key").queryExecution.sparkPlan
-    assert(plan1.collect { case p: ColumnarBroadcastHashJoinExec => p }.size === 1)
+    assert(plan1.collect { case p: BroadcastHashJoinExec => p }.size === 1)
 
     // no join key -- should not be a broadcast join
     val plan2 = df1.crossJoin(broadcast(df2)).queryExecution.sparkPlan
-    assert(plan2.collect { case p: ColumnarBroadcastHashJoinExec => p }.size === 0)
+    assert(plan2.collect { case p: BroadcastHashJoinExec => p }.size === 0)
 
     // planner should not crash without a join
     broadcast(df1).queryExecution.sparkPlan
@@ -165,20 +166,20 @@ class DataFrameJoinSuite extends QueryTest
     }
   }
 
-  ignore("broadcast join hint using Dataset.hint") {
+  test("broadcast join hint using Dataset.hint") {
     // make sure a giant join is not broadcastable
     val plan1 =
       spark.range(10e10.toLong)
         .join(spark.range(10e10.toLong), "id")
         .queryExecution.executedPlan
-    assert(plan1.collect { case p: ColumnarBroadcastHashJoinExec => p }.size == 0)
+    assert(plan1.collect { case p: BroadcastHashJoinExec => p }.size == 0)
 
     // now with a hint it should be broadcasted
     val plan2 =
       spark.range(10e10.toLong)
         .join(spark.range(10e10.toLong).hint("broadcast"), "id")
         .queryExecution.executedPlan
-    assert(collect(plan2) { case p: ColumnarBroadcastHashJoinExec => p }.size == 1)
+    assert(collect(plan2) { case p: BroadcastHashJoinExec => p }.size == 1)
   }
 
   test("join - outer join conversion") {
@@ -348,7 +349,7 @@ class DataFrameJoinSuite extends QueryTest
     }
   }
 
-  ignore("Supports multi-part names for broadcast hint resolution") {
+  test("Supports multi-part names for broadcast hint resolution") {
     val (table1Name, table2Name) = ("t1", "t2")
 
     withTempDatabase { dbName =>
@@ -359,7 +360,7 @@ class DataFrameJoinSuite extends QueryTest
 
           def checkIfHintApplied(df: DataFrame): Unit = {
             val sparkPlan = df.queryExecution.executedPlan
-            val broadcastHashJoins = sparkPlan.collect { case p: ColumnarBroadcastHashJoinExec => p }
+            val broadcastHashJoins = sparkPlan.collect { case p: BroadcastHashJoinExec => p }
             assert(broadcastHashJoins.size == 1)
             val broadcastExchanges = broadcastHashJoins.head.collect {
               case p: BroadcastExchangeExec => p
@@ -374,7 +375,7 @@ class DataFrameJoinSuite extends QueryTest
 
           def checkIfHintNotApplied(df: DataFrame): Unit = {
             val sparkPlan = df.queryExecution.executedPlan
-            val broadcastHashJoins = sparkPlan.collect { case p: ColumnarBroadcastHashJoinExec => p }
+            val broadcastHashJoins = sparkPlan.collect { case p: BroadcastHashJoinExec => p }
             assert(broadcastHashJoins.isEmpty)
           }
 

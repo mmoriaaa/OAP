@@ -130,6 +130,10 @@ class TableScanSuite extends DataSourceTest with SharedSparkSession {
       //.set("spark.sql.columnar.tmp_dir", "/codegen/nativesql/")
       .set("spark.sql.columnar.sort.broadcastJoin", "true")
       .set("spark.oap.sql.columnar.preferColumnar", "true")
+      .set("spark.sql.parquet.enableVectorizedReader", "false")
+      .set("spark.sql.orc.enableVectorizedReader", "false")
+      .set("spark.sql.inMemoryColumnarStorage.enableVectorizedReader", "false")
+      .set("spark.oap.sql.columnar.testing", "true")
 
   private lazy val tableWithSchemaExpected = (1 to 10).map { i =>
     Row(
@@ -326,7 +330,7 @@ class TableScanSuite extends DataSourceTest with SharedSparkSession {
     "SELECT structFieldComplex.Value.`value_(2)` FROM tableWithSchema",
     (1 to 10).map(i => Row(Seq(Date.valueOf(s"1970-01-${i + 1}")))).toSeq)
 
-  ignore("Caching")  {
+  test("Caching")  {
     // Cached Query Execution
     spark.catalog.cacheTable("oneToTen")
     assertCached(sql("SELECT * FROM oneToTen"))
