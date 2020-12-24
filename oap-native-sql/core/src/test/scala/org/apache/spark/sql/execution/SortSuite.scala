@@ -51,7 +51,7 @@ class SortSuite extends SparkPlanTest with SharedSparkSession {
       .set("spark.sql.columnar.sort.broadcastJoin", "true")
       .set("spark.oap.sql.columnar.preferColumnar", "true")
       .set("spark.sql.columnar.sort", "true")
-      .set("spark.sql.columnar.sort.NaNCheck", "true")
+      .set("spark.sql.columnar.nanCheck", "true")
 
   test("basic sorting using ExternalSort") {
 

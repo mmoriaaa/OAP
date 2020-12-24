@@ -42,14 +42,16 @@ case class ColumnarPreOverrides(conf: SparkConf) extends Rule[SparkPlan] {
     case plan: RowGuard =>
       val actualPlan = plan.child match {
         case p: BroadcastHashJoinExec =>
-          p.withNewChildren(p.children.map(child =>
-            child match {
-              case RowGuard(queryStage: BroadcastQueryStageExec) =>
-                fallBackBroadcastQueryStage(queryStage)
-              case queryStage: BroadcastQueryStageExec =>
-                fallBackBroadcastQueryStage(queryStage)
-              case other => other
-            }))
+          p.withNewChildren(p.children.map {
+            case RowGuard(queryStage: BroadcastQueryStageExec) =>
+              fallBackBroadcastQueryStage(queryStage)
+            case queryStage: BroadcastQueryStageExec =>
+              fallBackBroadcastQueryStage(queryStage)
+            case plan: BroadcastExchangeExec =>
+              // if BroadcastHashJoin is row-based, BroadcastExchange should also be row-based
+              RowGuard(plan)
+            case other => other
+          })
         case other =>
           other
       }

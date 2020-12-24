@@ -60,6 +60,7 @@ class DataFrameWriterV2Suite extends QueryTest with SharedSparkSession with Befo
       //.set("spark.sql.columnar.tmp_dir", "/codegen/nativesql/")
       .set("spark.sql.columnar.sort.broadcastJoin", "true")
       .set("spark.oap.sql.columnar.preferColumnar", "true")
+      .set("spark.oap.sql.columnar.testing", "true")
 
   private def catalog(name: String): TableCatalog = {
     spark.sessionState.catalogManager.catalog(name).asTableCatalog

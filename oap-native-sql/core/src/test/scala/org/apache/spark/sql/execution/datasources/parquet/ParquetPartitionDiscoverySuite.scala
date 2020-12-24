@@ -55,6 +55,29 @@ abstract class ParquetPartitionDiscoverySuite
   import PartitioningUtils._
   import testImplicits._
 
+  override def sparkConf: SparkConf =
+    super.sparkConf
+      .setAppName("test")
+      .set("spark.sql.parquet.columnarReaderBatchSize", "4096")
+      .set("spark.sql.sources.useV1SourceList", "avro")
+      .set("spark.sql.extensions", "com.intel.oap.ColumnarPlugin")
+      .set("spark.sql.execution.arrow.maxRecordsPerBatch", "4096")
+      //.set("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
+      .set("spark.memory.offHeap.enabled", "true")
+      .set("spark.memory.offHeap.size", "50m")
+      .set("spark.sql.join.preferSortMergeJoin", "false")
+      .set("spark.sql.columnar.codegen.hashAggregate", "false")
+      .set("spark.oap.sql.columnar.wholestagecodegen", "false")
+      .set("spark.sql.columnar.window", "false")
+      .set("spark.unsafe.exceptionOnMemoryLeak", "false")
+      //.set("spark.sql.columnar.tmp_dir", "/codegen/nativesql/")
+      .set("spark.sql.columnar.sort.broadcastJoin", "true")
+      .set("spark.oap.sql.columnar.preferColumnar", "true")
+      .set("spark.sql.parquet.enableVectorizedReader", "false")
+      .set("spark.sql.orc.enableVectorizedReader", "false")
+      .set("spark.sql.inMemoryColumnarStorage.enableVectorizedReader", "false")
+      .set("spark.oap.sql.columnar.testing", "true")
+
   val defaultPartitionName = ExternalCatalogUtils.DEFAULT_PARTITION_NAME
 
   val timeZoneId = ZoneId.systemDefault()
@@ -1047,26 +1070,6 @@ class ParquetV1PartitionDiscoverySuite extends ParquetPartitionDiscoverySuite {
 
   override def sparkConf: SparkConf =
     super.sparkConf
-      .setAppName("test")
-      .set("spark.sql.parquet.columnarReaderBatchSize", "4096")
-      .set("spark.sql.sources.useV1SourceList", "avro")
-      .set("spark.sql.extensions", "com.intel.oap.ColumnarPlugin")
-      .set("spark.sql.execution.arrow.maxRecordsPerBatch", "4096")
-      //.set("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
-      .set("spark.memory.offHeap.enabled", "true")
-      .set("spark.memory.offHeap.size", "50m")
-      .set("spark.sql.join.preferSortMergeJoin", "false")
-      .set("spark.sql.columnar.codegen.hashAggregate", "false")
-      .set("spark.oap.sql.columnar.wholestagecodegen", "false")
-      .set("spark.sql.columnar.window", "false")
-      .set("spark.unsafe.exceptionOnMemoryLeak", "false")
-      //.set("spark.sql.columnar.tmp_dir", "/codegen/nativesql/")
-      .set("spark.sql.columnar.sort.broadcastJoin", "true")
-      .set("spark.oap.sql.columnar.preferColumnar", "true")
-      .set("spark.sql.parquet.enableVectorizedReader", "false")
-      .set("spark.sql.orc.enableVectorizedReader", "false")
-      .set("spark.sql.inMemoryColumnarStorage.enableVectorizedReader", "false")
-      .set("spark.oap.sql.columnar.testing", "true")
       .set(SQLConf.USE_V1_SOURCE_LIST, "parquet")
 
   test("read partitioned table - partition key included in Parquet file") {
@@ -1213,26 +1216,6 @@ class ParquetV2PartitionDiscoverySuite extends ParquetPartitionDiscoverySuite {
   // TODO: enable Parquet V2 write path after file source V2 writers are workable.
   override def sparkConf: SparkConf =
     super.sparkConf
-      .setAppName("test")
-      .set("spark.sql.parquet.columnarReaderBatchSize", "4096")
-      .set("spark.sql.sources.useV1SourceList", "avro")
-      .set("spark.sql.extensions", "com.intel.oap.ColumnarPlugin")
-      .set("spark.sql.execution.arrow.maxRecordsPerBatch", "4096")
-      //.set("spark.shuffle.manager", "org.apache.spark.shuffle.sort.ColumnarShuffleManager")
-      .set("spark.memory.offHeap.enabled", "true")
-      .set("spark.memory.offHeap.size", "50m")
-      .set("spark.sql.join.preferSortMergeJoin", "false")
-      .set("spark.sql.columnar.codegen.hashAggregate", "false")
-      .set("spark.oap.sql.columnar.wholestagecodegen", "false")
-      .set("spark.sql.columnar.window", "false")
-      .set("spark.unsafe.exceptionOnMemoryLeak", "false")
-      //.set("spark.sql.columnar.tmp_dir", "/codegen/nativesql/")
-      .set("spark.sql.columnar.sort.broadcastJoin", "true")
-      .set("spark.oap.sql.columnar.preferColumnar", "true")
-      .set("spark.sql.parquet.enableVectorizedReader", "false")
-      .set("spark.sql.orc.enableVectorizedReader", "false")
-      .set("spark.sql.inMemoryColumnarStorage.enableVectorizedReader", "false")
-      .set("spark.oap.sql.columnar.testing", "true")
       .set(SQLConf.USE_V1_SOURCE_LIST, "")
 
   test("read partitioned table - partition key included in Parquet file") {

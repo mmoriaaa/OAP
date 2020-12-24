@@ -21,6 +21,8 @@ import java.io.{File, FileNotFoundException}
 import java.nio.file.{Files, StandardOpenOption}
 import java.util.Locale
 
+import com.intel.oap.execution.ColumnarBroadcastHashJoinExec
+
 import scala.collection.mutable
 import org.apache.hadoop.fs.Path
 import org.apache.spark.{SparkConf, SparkException}
@@ -743,7 +745,7 @@ class FileBasedDataSourceSuite extends QueryTest
           val joinedDF = df1FromFile.join(df2FromFile, Seq("count"))
           if (compressionFactor == 0.5) {
             val bJoinExec = collect(joinedDF.queryExecution.executedPlan) {
-              case bJoin: BroadcastHashJoinExec => bJoin
+              case bJoin: ColumnarBroadcastHashJoinExec => bJoin
             }
             assert(bJoinExec.nonEmpty)
             val smJoinExec = collect(joinedDF.queryExecution.executedPlan) {

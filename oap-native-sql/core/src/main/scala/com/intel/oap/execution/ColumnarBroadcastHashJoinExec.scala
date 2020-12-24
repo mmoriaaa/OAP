@@ -22,7 +22,7 @@ import java.nio.ByteBuffer
 import java.util.concurrent.TimeUnit._
 
 import com.intel.oap.vectorized._
-import com.intel.oap.ColumnarPluginConfig
+import com.intel.oap.{ColumnarGuardRule, ColumnarPluginConfig}
 import org.apache.spark.TaskContext
 import org.apache.spark.rdd.RDD
 import org.apache.spark.util.{ExecutorManager, UserAddedJarUtils, Utils}
@@ -58,7 +58,7 @@ import org.apache.spark.sql.execution.datasources.v2.arrow.SparkMemoryUtils
 import org.apache.spark.sql.execution.exchange.BroadcastExchangeExec
 import org.apache.spark.sql.execution.joins.BroadcastHashJoinExec
 import org.apache.spark.sql.execution.joins.{BuildLeft, BuildRight, BuildSide, HashJoin}
-import org.apache.spark.sql.types.{StructField, StructType}
+import org.apache.spark.sql.types.{BinaryType, ByteType, DecimalType, NullType, StructField, StructType, TimestampType}
 
 /**
  * Performs a hash join of two child relations by first shuffling the data using the join keys.
@@ -98,11 +98,17 @@ case class ColumnarBroadcastHashJoinExec(
     }
   }
 
+
   // build check for BroadcastExchange
-  if (left.isInstanceOf[BroadcastExchangeExec] ||
-      right.isInstanceOf[BroadcastExchangeExec]) {
-    throw new UnsupportedOperationException(
-      s"exchange is BroadcastExchangeExec")
+  left match {
+    case exec: BroadcastExchangeExec =>
+      new ColumnarBroadcastExchangeExec(exec.mode, exec.child)
+    case _ =>
+  }
+  right match {
+    case exec: BroadcastExchangeExec =>
+      new ColumnarBroadcastExchangeExec(exec.mode, exec.child)
+    case _ =>
   }
   // build check for condition
   val conditionExpr: Expression = condition.orNull
@@ -111,9 +117,12 @@ case class ColumnarBroadcastHashJoinExec(
   }
   // build check for res types
   val streamInputAttributes: List[Attribute] = streamedPlan.output.toList
-  for (attr <- streamInputAttributes) {
-    CodeGeneration.getResultType(attr.dataType)
-  }
+  val unsupportedTypes = List(NullType, TimestampType, BinaryType, ByteType)
+  streamInputAttributes.foreach(attr => {
+    if (unsupportedTypes.indexOf(attr.dataType) != -1 || attr.dataType.isInstanceOf[DecimalType])
+      throw new UnsupportedOperationException(
+        s"${attr.dataType} is not supported in ColumnarBroadcastHashJoinExec.")
+  })
   // build check for expr
   for (expr <- buildKeyExprs) {
     ColumnarExpressionConverter.replaceWithColumnarExpression(expr)
