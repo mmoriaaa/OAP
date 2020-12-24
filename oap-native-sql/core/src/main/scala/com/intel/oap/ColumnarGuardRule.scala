@@ -59,13 +59,13 @@ case class ColumnarGuardRule(conf: SparkConf) extends Rule[SparkPlan] {
           new ColumnarBatchScanExec(plan.output, plan.scan)
         case plan: FileSourceScanExec =>
           if (plan.supportsColumnar) {
-            logInfo(s"FileSourceScanExec ${plan.nodeName} supports columnar, " +
+            logWarning(s"FileSourceScanExec ${plan.nodeName} supports columnar, " +
               s"may causing columnar conversion exception")
           }
           plan
         case plan: InMemoryTableScanExec =>
           if (plan.supportsColumnar) {
-            logInfo(s"InMemoryTableScanExec ${plan.nodeName} supports columnar, " +
+            logWarning(s"InMemoryTableScanExec ${plan.nodeName} supports columnar, " +
               s"may causing columnar conversion exception")
           }
           plan
@@ -137,6 +137,7 @@ case class ColumnarGuardRule(conf: SparkConf) extends Rule[SparkPlan] {
       }
     } catch {
       case e: UnsupportedOperationException =>
+        System.out.println(s"Fall back to use row-based operators, error is ${e.getMessage}")
         return false
     }
     return true

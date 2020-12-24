@@ -179,7 +179,7 @@ class DataFrameJoinSuite extends QueryTest
       spark.range(10e10.toLong)
         .join(spark.range(10e10.toLong).hint("broadcast"), "id")
         .queryExecution.executedPlan
-    assert(collect(plan2) { case p: BroadcastHashJoinExec => p }.size == 1)
+    assert(collect(plan2) { case p: ColumnarBroadcastHashJoinExec => p }.size == 1)
   }
 
   test("join - outer join conversion") {
@@ -360,7 +360,7 @@ class DataFrameJoinSuite extends QueryTest
 
           def checkIfHintApplied(df: DataFrame): Unit = {
             val sparkPlan = df.queryExecution.executedPlan
-            val broadcastHashJoins = sparkPlan.collect { case p: BroadcastHashJoinExec => p }
+            val broadcastHashJoins = sparkPlan.collect { case p: ColumnarBroadcastHashJoinExec => p }
             assert(broadcastHashJoins.size == 1)
             val broadcastExchanges = broadcastHashJoins.head.collect {
               case p: BroadcastExchangeExec => p
