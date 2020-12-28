@@ -26,13 +26,22 @@ static constexpr uint8_t kBitmask[] = {1, 2, 4, 8, 16, 32, 64, 128};
 struct UnsafeRow {
   int numFields;
   char* data = nullptr;
+  std::vector<int> col_byte_list_;
+  int bytes_total = 0;
+  int validity_size_;
   int cursor;
   UnsafeRow() {}
-  UnsafeRow(int numFields) : numFields(numFields) {
-    auto validity_size = (numFields / 8) + 1;
-    cursor = validity_size;
+  UnsafeRow(int numFields, std::vector<int> col_byte_list = {}) : numFields(numFields) {
+    auto validity_size_ = (numFields / 8) + 1;
+    cursor = validity_size_;
     data = (char*)nativeMalloc(TEMP_UNSAFEROW_BUFFER_SIZE, MEMTYPE_ROW);
-    memset(data, 0, validity_size);
+    if (col_byte_list.size() != 0) {
+      for (int i : col_byte_list) {
+        bytes_total += i;
+      }
+    }
+    col_byte_list_ = col_byte_list;
+    memset(data, 0, validity_size_);
   }
   ~UnsafeRow() {
     if (data) {
@@ -50,6 +59,13 @@ struct UnsafeRow {
       if (data[i] != 0) return true;
     }
     return false;
+  }
+  auto getData(int id, int64_t col_id) {
+    int bytes_before = col_id > 0 ? col_byte_list_[col_id - 1] : 0;
+    // *((T*)(row->data + row->cursor))
+    auto val = *((uint32_t*)(data + 1 + id * bytes_total + bytes_before));
+    // return *((uint32_t*)(data + 1 + id * bytes_total + bytes_before));
+    return *(data + 1 + id * bytes_total + bytes_before);
   }
 };
 
@@ -89,6 +105,7 @@ template <typename T, typename std::enable_if_t<is_number_alike<T>::value>* = nu
 static inline void appendToUnsafeRow(UnsafeRow* row, const int& index, const T& val) {
   *((T*)(row->data + row->cursor)) = val;
   row->cursor += sizeof(T);
+  // std::cout << "cursor is: " << row->cursor << ", val is: " << val << std::endl;
 }
 
 static inline void appendToUnsafeRow(UnsafeRow* row, const int& index,

@@ -1531,6 +1531,316 @@ class SortOnekeyKernel  : public SortArraysToIndicesKernel::Impl {
   };
 };
 
+class RowComparator {
+ public:
+  RowComparator(std::vector<std::shared_ptr<UnsafeRow>>& unsafe_rows, 
+      std::vector<bool> sort_directions, std::vector<bool> nulls_order,
+      std::vector<int> key_index_list, std::vector<int> col_byte_list) 
+      : unsafe_rows_(unsafe_rows),
+        sort_directions_(sort_directions),
+        nulls_order_(nulls_order),
+        key_index_list_(key_index_list),
+        col_byte_list_(col_byte_list) {
+    for (int byte_num : col_byte_list) {
+      bytes_total_ += byte_num;
+    }
+  }
+
+  int compareInternal(int left_array_id, int64_t left_id, 
+                      int right_array_id, int64_t right_id) {
+    int key_id = 0;
+    int keys_num = sort_directions_.size();
+    int col_num = col_byte_list_.size();
+    while (key_id < keys_num) {
+      int col_id = key_index_list_[key_id];
+      bool asc = sort_directions_[key_id];
+      bool nulls_first = nulls_order_[key_id];
+      auto left = unsafe_rows_[left_array_id]->getData(left_id, col_id);
+      auto right = unsafe_rows_[right_array_id]->getData(right_id, col_id);
+      // needs fix
+      if (left == NULL && right == NULL) {
+        key_id += 1;
+        continue;
+      } else if (left == NULL) {
+        return nulls_first ? 1 : 0; 
+      } else if (right == NULL) {
+        return nulls_first ? 0 : 1;
+      } else {
+        int comparison;
+        if (left == right) {
+            comparison = 2;
+        } else {
+          if (asc) {
+            comparison = left < right;
+          } else {
+            comparison = left > right;
+          }
+        }
+        if (comparison != 2) {
+          return comparison;
+        }
+      }
+      key_id += 1;
+    }
+    return 2;
+  }
+
+  bool compare(int left_array_id, int64_t left_len, 
+               int right_array_id, int64_t right_len) {
+    if (compareInternal(left_array_id, left_len, 
+                        right_array_id, right_len) == 1) {
+      return true;
+    } else {
+      return false;
+    }
+  }
+
+ private:
+  std::vector<std::shared_ptr<UnsafeRow>> unsafe_rows_;
+  std::vector<bool> sort_directions_;
+  std::vector<bool> nulls_order_;
+  std::vector<int> col_byte_list_;
+  std::vector<int> key_index_list_;
+  int bytes_total_;
+};
+
+///////////////  SortArraysMultipleKeys  ////////////////
+class SortMultiplekeyKernel  : public SortArraysToIndicesKernel::Impl {
+ public:
+  SortMultiplekeyKernel(arrow::compute::FunctionContext* ctx,
+                        std::shared_ptr<arrow::Schema> result_schema,
+                        std::shared_ptr<gandiva::Projector> key_projector,
+                        std::vector<std::shared_ptr<arrow::Field>> key_field_list,
+                        std::vector<bool> sort_directions, 
+                        std::vector<bool> nulls_order,
+                        bool NaN_check)
+      : ctx_(ctx), 
+        nulls_order_(nulls_order), 
+        sort_directions_(sort_directions), 
+        result_schema_(result_schema), 
+        key_projector_(key_projector),
+        key_field_list_(key_field_list),
+        NaN_check_(NaN_check) {
+      #ifdef DEBUG
+          std::cout << "UseSortMultipleKeyForArithmetic" << std::endl;
+      #endif
+      for (auto field : key_field_list) {
+        auto indices = result_schema->GetAllFieldIndices(field->name());
+        if (indices.size() != 1) {
+          std::cout << "[ERROR] SortArraysToIndicesKernel::Impl can't find key "
+                    << field->ToString() << " from " << result_schema->ToString()
+                    << std::endl;
+          throw;
+        }
+        key_index_list_.push_back(indices[0]);
+      }
+      col_num_ = result_schema->num_fields();
+      std::vector<std::shared_ptr<::arrow::Field>> res_fields = result_schema->fields();
+      for (auto field : res_fields) {
+        int cur_col_bytes = 0;
+        if (field->type()->id() == arrow::Type::INT32) {
+          cur_col_bytes = sizeof(int);
+        } else if (field->type()->id() == arrow::Type::UINT32) {
+          cur_col_bytes = sizeof(uint32_t);
+        } else if (field->type()->id() == arrow::Type::INT64) {
+          cur_col_bytes = sizeof(int64_t);
+        } else if (field->type()->id() == arrow::Type::DOUBLE) {
+          cur_col_bytes = sizeof(double);
+        } else if (field->type()->id() == arrow::Type::FLOAT) {
+          cur_col_bytes = sizeof(float);
+        }
+        col_byte_list_.push_back(cur_col_bytes);
+      }
+  }
+  ~SortMultiplekeyKernel(){}
+
+  arrow::Status Evaluate(const ArrayList& in) override {
+    num_batches_++;
+    if (cached_.size() <= col_num_) {
+      cached_.resize(col_num_ + 1);
+    }
+    if (key_projector_) {
+      // do projection here
+      std::vector<std::shared_ptr<arrow::Array>> projected_in;
+      auto length = in.size() > 0 ? in[0]->length() : 0;
+      auto in_batch = arrow::RecordBatch::Make(result_schema_, length, in);
+      RETURN_NOT_OK(
+          key_projector_->Evaluate(*in_batch, ctx_->memory_pool(), &projected_in));
+      for (int i = 0; i < col_num_; i++) {
+        cached_[i].push_back(projected_in[i]);
+      }
+    } else {
+      for (int i = 0; i < col_num_; i++) {
+        cached_[i].push_back(in[i]);
+      }
+    }
+    items_total_ += in[0]->length();
+    length_list_.push_back(in[0]->length());
+
+    std::vector<std::shared_ptr<UnsafeArray>> arrays;
+    int i = 0;
+    for (auto col : in) {
+      std::shared_ptr<UnsafeArray> array;
+      RETURN_NOT_OK(MakeUnsafeArray(col->type(), i++, col, &array));
+      arrays.push_back(array);
+    }
+    std::shared_ptr<UnsafeRow> row = std::make_shared<UnsafeRow>(arrays.size(), col_byte_list_);
+    for (int i = 0; i < in[0]->length(); i++) {
+      for (auto array : arrays) {
+        RETURN_NOT_OK(array->Append(i, &row));
+      }
+    }
+    unsafe_rows_.push_back(row);
+    return arrow::Status::OK();
+  }
+
+  void Partition(ArrayItemIndexS* indices_begin, 
+                 ArrayItemIndexS* indices_end) {
+    int64_t indices_i = 0;
+    int64_t indices_null = 0;
+    for (int array_id = 0; array_id < num_batches_; array_id++) {
+      for (int64_t i = 0; i < length_list_[array_id]; i++) {
+        (indices_begin + indices_i)->array_id = array_id;
+        (indices_begin + indices_i)->id = i;
+        indices_i++;
+      }
+    }
+  }
+
+  auto Sort(ArrayItemIndexS* indices_begin, ArrayItemIndexS* indices_end, 
+            std::shared_ptr<RowComparator> rowComparator) {
+    auto comp = [this, &rowComparator](ArrayItemIndexS x, ArrayItemIndexS y) {
+        return rowComparator->compare(x.array_id, x.id, y.array_id, y.id);};
+    std::sort(indices_begin, indices_begin + items_total_, comp);
+  }
+
+  arrow::Status FinishInternal(std::shared_ptr<FixedSizeBinaryArray>* out) {
+    // initiate buffer for all arrays
+    std::shared_ptr<arrow::Buffer> indices_buf;
+    int64_t buf_size = items_total_ * sizeof(ArrayItemIndexS);
+    RETURN_NOT_OK(arrow::AllocateBuffer(ctx_->memory_pool(), buf_size, &indices_buf));
+    ArrayItemIndexS* indices_begin = 
+      reinterpret_cast<ArrayItemIndexS*>(indices_buf->mutable_data());
+    ArrayItemIndexS* indices_end = indices_begin + items_total_;
+    // do partition and sort here
+    Partition(indices_begin, indices_end);
+    std::shared_ptr<RowComparator> rowSorter = std::make_shared<RowComparator>(
+        unsafe_rows_, sort_directions_, nulls_order_, key_index_list_, col_byte_list_);  
+    Sort(indices_begin, indices_end, rowSorter);
+    std::shared_ptr<arrow::FixedSizeBinaryType> out_type;
+    RETURN_NOT_OK(MakeFixedSizeBinaryType(sizeof(ArrayItemIndexS) / sizeof(int32_t), &out_type));
+    RETURN_NOT_OK(MakeFixedSizeBinaryArray(out_type, items_total_, indices_buf, out));
+    return arrow::Status::OK();
+  }
+
+  arrow::Status MakeResultIterator(
+      std::shared_ptr<arrow::Schema> schema,
+      std::shared_ptr<ResultIterator<arrow::RecordBatch>>* out) override {
+    std::shared_ptr<FixedSizeBinaryArray> indices_out;
+    RETURN_NOT_OK(FinishInternal(&indices_out));
+    *out = std::make_shared<SorterResultIterator>(ctx_, schema, indices_out, cached_);
+    return arrow::Status::OK();
+  }
+
+ private:
+  std::vector<arrow::ArrayVector> cached_;
+  arrow::compute::FunctionContext* ctx_;
+  std::shared_ptr<arrow::Schema> result_schema_;
+  std::shared_ptr<gandiva::Projector> key_projector_;
+  std::vector<std::shared_ptr<arrow::Field>> key_field_list_;
+  std::vector<bool> nulls_order_;
+  std::vector<bool> sort_directions_;
+  std::vector<int> key_index_list_;
+  std::vector<std::shared_ptr<UnsafeRow>> unsafe_rows_;
+  std::vector<int> col_byte_list_;
+  bool NaN_check_;
+  std::vector<int64_t> length_list_;
+  uint64_t num_batches_ = 0;
+  uint64_t items_total_ = 0;
+  int col_num_;
+  
+  class SorterResultIterator : public ResultIterator<arrow::RecordBatch> {
+   public:
+    SorterResultIterator(arrow::compute::FunctionContext* ctx,
+                         std::shared_ptr<arrow::Schema> schema,
+                         std::shared_ptr<FixedSizeBinaryArray> indices_in,
+                         std::vector<arrow::ArrayVector>& cached)
+        : ctx_(ctx),
+          schema_(schema),
+          indices_in_cache_(indices_in),
+          total_length_(indices_in->length()),
+          cached_in_(cached) {
+      col_num_ = schema->num_fields();
+      indices_begin_ = (ArrayItemIndexS*)indices_in->value_data();
+      // appender_type won't be used
+      AppenderBase::AppenderType appender_type = AppenderBase::left;
+      for (int i = 0; i < col_num_; i++) {
+        auto field = schema->field(i);
+        std::shared_ptr<AppenderBase> appender;
+        MakeAppender(ctx_, field->type(), appender_type, &appender);
+        appender_list_.push_back(appender);
+      }
+      for (int i = 0; i < col_num_; i++) {
+        arrow::ArrayVector array_vector = cached_in_[i];
+        int array_num = array_vector.size();
+        for (int array_id = 0; array_id < array_num; array_id++) {
+          auto arr = array_vector[array_id];
+          appender_list_[i]->AddArray(arr);
+        }
+      }
+      batch_size_ = GetBatchSize();
+    }
+    ~SorterResultIterator(){}
+
+    std::string ToString() override { return "SortArraysToIndicesResultIterator"; }
+
+    bool HasNext() override {
+      if (offset_ >= total_length_) {
+        return false;
+      }
+      return true;
+    }
+
+    arrow::Status Next(std::shared_ptr<arrow::RecordBatch>* out) {
+      auto length = (total_length_ - offset_) > batch_size_ ? batch_size_
+                                                            : (total_length_ - offset_);
+      uint64_t count = 0;
+      for (int i = 0; i < col_num_; i++) {
+        while (count < length) {
+          auto item = indices_begin_ + offset_ + count++;
+          RETURN_NOT_OK(appender_list_[i]->Append(item->array_id, item->id));
+        }
+        count = 0;
+      }
+      offset_ += length;
+      ArrayList arrays;
+      for (int i = 0; i < col_num_; i++) {
+        std::shared_ptr<arrow::Array> out_array;
+        RETURN_NOT_OK(appender_list_[i]->Finish(&out_array));
+        arrays.push_back(out_array);
+        appender_list_[i]->Reset();
+      }
+
+      *out = arrow::RecordBatch::Make(schema_, length, arrays);
+      return arrow::Status::OK();
+    }
+
+   private:
+    uint64_t offset_ = 0;
+    const uint64_t total_length_;
+    std::shared_ptr<arrow::Schema> schema_;
+    arrow::compute::FunctionContext* ctx_;
+    uint64_t batch_size_;
+    int col_num_;
+    ArrayItemIndexS* indices_begin_;
+    std::vector<arrow::ArrayVector> cached_in_;
+    std::vector<std::shared_ptr<arrow::DataType>> type_list_;
+    std::vector<std::shared_ptr<AppenderBase>> appender_list_;
+    std::vector<std::shared_ptr<arrow::Array>> array_list_;
+    std::shared_ptr<FixedSizeBinaryArray> indices_in_cache_;
+  };
+};
+
 arrow::Status SortArraysToIndicesKernel::Make(
     arrow::compute::FunctionContext* ctx,
     std::shared_ptr<arrow::Schema> result_schema,
@@ -1661,15 +1971,20 @@ SortArraysToIndicesKernel::SortArraysToIndicesKernel(
       }
     }
   } else {
-    // Will use Sort Codegen when sorting for several cols
-    impl_.reset(new Impl(ctx, result_schema, key_projector, projected_types, 
-                         key_field_list, sort_directions, nulls_order, NaN_check));
-    auto status = impl_->LoadJITFunction(key_field_list, result_schema);
-    if (!status.ok()) {
-      std::cout << "LoadJITFunction failed, msg is " << status.message() << std::endl;
-      throw;
-    }
+    impl_.reset(new SortMultiplekeyKernel(ctx, result_schema, key_projector, key_field_list, 
+                                          sort_directions, nulls_order, NaN_check));
   }
+  
+  // else {
+  //   // Will use Sort Codegen when sorting for several cols
+  //   impl_.reset(new Impl(ctx, result_schema, key_projector, projected_types, 
+  //                        key_field_list, sort_directions, nulls_order, NaN_check));
+  //   auto status = impl_->LoadJITFunction(key_field_list, result_schema);
+  //   if (!status.ok()) {
+  //     std::cout << "LoadJITFunction failed, msg is " << status.message() << std::endl;
+  //     throw;
+  //   }
+  // }
   kernel_name_ = "SortArraysToIndicesKernel";
 }
 #undef PROCESS_SUPPORTED_TYPES
